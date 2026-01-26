@@ -3,9 +3,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { cropService } from '../services/cropService';
 import { harvestService } from '../services/harvestService';
 import { customerService } from '../services/customerService';
+import NoOrganization from '../components/ui/NoOrganization';
 
 export default function Dashboard() {
-  const { currentOrganization, currentUser } = useAuth();
+  const { currentOrganization } = useAuth();
   const [stats, setStats] = useState({
     activeCrops: 0,
     recentHarvests: 0,
@@ -43,13 +44,7 @@ export default function Dashboard() {
   }
 
   if (!currentOrganization) {
-    return (
-      <div className="px-4 py-6 sm:px-0">
-        <div className="text-center py-12">
-          <p className="text-gray-500">Loading organization...</p>
-        </div>
-      </div>
-    );
+    return <NoOrganization />;
   }
 
   return (

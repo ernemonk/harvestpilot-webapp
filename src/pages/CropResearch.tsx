@@ -9,6 +9,7 @@ import { getUserProfile } from '../services/userService';
 import { loadTestCropResearchData } from '../utils/loadTestData';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import ErrorMessage from '../components/ui/ErrorMessage';
+import NoOrganization from '../components/ui/NoOrganization';
 import Card from '../components/ui/Card';
 import Modal from '../components/ui/Modal';
 import AddCropResearchForm from '../components/cropResearch/AddCropResearchForm';
@@ -19,11 +20,12 @@ export default function CropResearchPage() {
   const { canEdit, isViewer } = usePermissions();
   const navigate = useNavigate();
   
+  // Pass both organizationId and userId for backward compatibility
   const fetchCropResearch = useMemo(() => 
     currentOrganization 
-      ? () => cropResearchService.getOrganizationCropResearch(currentOrganization.id) 
+      ? () => cropResearchService.getOrganizationCropResearch(currentOrganization.id, currentUser?.uid) 
       : null,
-    [currentOrganization?.id]
+    [currentOrganization?.id, currentUser?.uid]
   );
     
   const { data: cropResearch, loading, error, refetch } = useFirestoreList<CropResearch>(fetchCropResearch);
@@ -36,6 +38,7 @@ export default function CropResearchPage() {
   const [viewMode, setViewMode] = useState<'single' | 'double'>('double');
   const [sortBy, setSortBy] = useState<'suitability' | 'revenue' | 'profit' | 'growingTime'>('suitability');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(true);
+  const [displayMode, setDisplayMode] = useState<'cards' | 'table'>('cards');
   
   // Advanced filters
   const [revenueRange, setRevenueRange] = useState<[number, number]>([0, 200000]);
@@ -251,7 +254,7 @@ export default function CropResearchPage() {
     refetch();
   };
 
-  if (!currentOrganization) return <LoadingSpinner message="Loading organization..." />;
+  if (!currentOrganization) return <NoOrganization />;
   if (loading) return <LoadingSpinner message="Loading crop research data..." />;
   if (error) return <ErrorMessage message={`Error loading crop research: ${error}`} />;
 
@@ -942,165 +945,236 @@ export default function CropResearchPage() {
               >
                 📋 Two Columns
               </button>
+              <button
+                onClick={() => setDisplayMode('cards')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  displayMode === 'cards' 
+                    ? 'bg-emerald-600 text-white' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                🎨 Cards
+              </button>
+              <button
+                onClick={() => setDisplayMode('table')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  displayMode === 'table' 
+                    ? 'bg-emerald-600 text-white' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                📊 Table
+              </button>
             </div>
           </div>
         </div>
       </Card>
 
-      {/* Crop Research Grid */}
-      <div className={`grid gap-6 ${viewMode === 'double' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
-        {sortedCrops.map(crop => {
-          const isExpanded = expandedCards.has(crop.id);
-          return (
-            <Card 
-              key={crop.id} 
-              className="hover:shadow-lg transition-all duration-300"
-            >
-              <div 
-                className="p-6 cursor-pointer"
-                onClick={() => navigate(`/crop-research/${crop.id}`)}
+      {/* Crop Research Grid - Cards View */}
+      {displayMode === 'cards' && (
+        <div className={`grid gap-6 ${viewMode === 'double' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+          {sortedCrops.map(crop => {
+            const isExpanded = expandedCards.has(crop.id);
+            return (
+              <Card 
+                key={crop.id} 
+                className="hover:shadow-lg transition-all duration-300"
               >
-                {/* Header - Always Visible */}
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                      {crop.name}
-                      <button
-                        onClick={(e) => toggleCard(crop.id, e)}
-                        className="transform transition-transform duration-300 text-emerald-600 hover:text-emerald-700 focus:outline-none"
-                      >
-                        <span className={`inline-block ${isExpanded ? 'rotate-180' : ''}`}>
-                          ▼
-                        </span>
-                      </button>
-                    </h3>
-                    <p className="text-sm text-gray-600">{crop.category}</p>
-                  </div>
-                  <div className={`text-right ${getSuitabilityColor(crop.bayAreaSuitability)}`}>
-                    <div className="text-2xl">{getSuitabilityStars(crop.bayAreaSuitability)}</div>
-                    <div className="text-xs whitespace-nowrap">Bay Area Fit</div>
-                  </div>
-                </div>
-
-                {/* Compact View - Key Metrics Only */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-emerald-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-600 mb-1">Revenue/Acre</p>
-                    <p className="font-bold text-emerald-700">{crop.annualRevenuePerAcre}</p>
-                  </div>
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-600 mb-1">Profit Margin</p>
-                    <p className="font-bold text-green-700">{crop.profitMargin}</p>
-                  </div>
-                </div>
-
-                {/* Expanded Content */}
                 <div 
-                  className={`overflow-hidden transition-all duration-300 ${
-                    isExpanded ? 'max-h-[2000px] opacity-100 mt-4' : 'max-h-0 opacity-0'
-                  }`}
-                  onClick={(e) => e.stopPropagation()}
+                  className="p-6 cursor-pointer"
+                  onClick={() => navigate(`/crop-research/${crop.id}`)}
                 >
-                  {/* Additional Metrics */}
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-600 mb-1">Startup Cost/Acre</p>
-                      <p className="font-semibold text-gray-800">{crop.startupCostPerAcre}</p>
+                  {/* Header - Always Visible */}
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        {crop.name}
+                        <button
+                          onClick={(e) => toggleCard(crop.id, e)}
+                          className="transform transition-transform duration-300 text-emerald-600 hover:text-emerald-700 focus:outline-none"
+                        >
+                          <span className={`inline-block ${isExpanded ? 'rotate-180' : ''}`}>
+                            ▼
+                          </span>
+                        </button>
+                      </h3>
+                      <p className="text-sm text-gray-600">{crop.category}</p>
                     </div>
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-600 mb-1">Growing Time</p>
-                      <p className="font-semibold text-blue-800">{crop.growingTime}</p>
-                    </div>
-                  </div>
-
-                  {/* Badges */}
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${getIntensityBadge(crop.laborIntensity)}`}>
-                      💪 Labor: {crop.laborIntensity}
-                    </span>
-                    <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${getDemandBadge(crop.marketDemand)}`}>
-                      📈 Demand: {crop.marketDemand}
-                    </span>
-                    <span className="px-3 py-1.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                      💧 Water: {crop.waterNeeds}
-                    </span>
-                  </div>
-
-                  {/* Pricing */}
-                  <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-4 rounded-lg mb-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">Price per Pound</p>
-                        <p className="font-bold text-xl text-emerald-700">{crop.pricePerPound}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-600 mb-1">Harvest</p>
-                        <p className="text-sm font-medium text-gray-800">{crop.harvestFrequency}</p>
-                      </div>
+                    <div className={`text-right ${getSuitabilityColor(crop.bayAreaSuitability)}`}>
+                      <div className="text-2xl">{getSuitabilityStars(crop.bayAreaSuitability)}</div>
+                      <div className="text-xs whitespace-nowrap">Bay Area Fit</div>
                     </div>
                   </div>
 
-                  {/* Growing Requirements */}
-                  <div className="bg-amber-50 p-4 rounded-lg mb-4">
-                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      🌱 Growing Requirements
-                    </h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex">
-                        <span className="font-medium text-gray-700 w-24">Soil:</span>
-                        <span className="text-gray-600 flex-1">{crop.soilType}</span>
-                      </div>
-                      <div className="flex">
-                        <span className="font-medium text-gray-700 w-24">Nutrients:</span>
-                        <span className="text-gray-600 flex-1">{crop.nutrientRequirements}</span>
-                      </div>
+                  {/* Compact View - Key Metrics Only */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-emerald-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-600 mb-1">Revenue/Acre</p>
+                      <p className="font-bold text-emerald-700">{crop.annualRevenuePerAcre}</p>
+                    </div>
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-600 mb-1">Profit Margin</p>
+                      <p className="font-bold text-green-700">{crop.profitMargin}</p>
                     </div>
                   </div>
 
-                  {/* Pests & Diseases */}
-                  <div className="bg-red-50 p-4 rounded-lg mb-4">
-                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      ⚠️ Challenges
-                    </h4>
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <span className="font-medium text-gray-700">🐛 Common Pests:</span>
-                        <p className="text-gray-600 mt-1">{crop.commonPests}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-700">🦠 Common Diseases:</span>
-                        <p className="text-gray-600 mt-1">{crop.commonDiseases}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Notes */}
-                  {crop.notes && (
-                    <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-400">
-                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                        💡 Notes
-                      </h4>
-                      <p className="text-sm text-gray-700 leading-relaxed">{crop.notes}</p>
-                    </div>
-                  )}
-                  <button
-                    onClick={(e) => toggleCard(crop.id, e)}
-                    className="text-xs text-gray-500 hover:text-emerald-600 transition-colors"
+                  {/* Expanded Content */}
+                  <div 
+                    className={`overflow-hidden transition-all duration-300 ${
+                      isExpanded ? 'max-h-[2000px] opacity-100 mt-4' : 'max-h-0 opacity-0'
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    {isExpanded ? '▲ Click to collapse' : '▼ Click to view full details'}
-                  </button>
+                    {/* Additional Metrics */}
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-600 mb-1">Startup Cost/Acre</p>
+                        <p className="font-semibold text-gray-800">{crop.startupCostPerAcre}</p>
+                      </div>
+                      <div className="bg-blue-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-600 mb-1">Growing Time</p>
+                        <p className="font-semibold text-blue-800">{crop.growingTime}</p>
+                      </div>
+                    </div>
+
+                    {/* Badges */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${getIntensityBadge(crop.laborIntensity)}`}>
+                        💪 Labor: {crop.laborIntensity}
+                      </span>
+                      <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${getDemandBadge(crop.marketDemand)}`}>
+                        📈 Demand: {crop.marketDemand}
+                      </span>
+                      <span className="px-3 py-1.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                        💧 Water: {crop.waterNeeds}
+                      </span>
+                    </div>
+
+                    {/* Pricing */}
+                    <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-4 rounded-lg mb-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">Price per Pound</p>
+                          <p className="font-bold text-xl text-emerald-700">{crop.pricePerPound}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-600 mb-1">Harvest</p>
+                          <p className="text-sm font-medium text-gray-800">{crop.harvestFrequency}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Growing Requirements */}
+                    <div className="bg-amber-50 p-4 rounded-lg mb-4">
+                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        🌱 Growing Requirements
+                      </h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex">
+                          <span className="font-medium text-gray-700 w-24">Soil:</span>
+                          <span className="text-gray-600 flex-1">{crop.soilType}</span>
+                        </div>
+                        <div className="flex">
+                          <span className="font-medium text-gray-700 w-24">Nutrients:</span>
+                          <span className="text-gray-600 flex-1">{crop.nutrientRequirements}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pests & Diseases */}
+                    <div className="bg-red-50 p-4 rounded-lg mb-4">
+                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        ⚠️ Challenges
+                      </h4>
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="font-medium text-gray-700">🐛 Common Pests:</span>
+                          <p className="text-gray-600 mt-1">{crop.commonPests}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-700">🦠 Common Diseases:</span>
+                          <p className="text-gray-600 mt-1">{crop.commonDiseases}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    {crop.notes && (
+                      <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-400">
+                        <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                          💡 Notes
+                        </h4>
+                        <p className="text-sm text-gray-700 leading-relaxed">{crop.notes}</p>
+                      </div>
+                    )}
+                    <button
+                      onClick={(e) => toggleCard(crop.id, e)}
+                      className="text-xs text-gray-500 hover:text-emerald-600 transition-colors"
+                    >
+                      {isExpanded ? '▲ Click to collapse' : '▼ Click to view full details'}
+                    </button>
+                  </div>
+                  {/* Expand/Collapse Hint */}
+                  <div className="mt-4 pt-3 border-t border-gray-200 text-center">
+                    <p className="text-xs text-gray-500">
+                      {isExpanded ? 'Click to collapse' : 'Click to view full details'}
+                    </p>
+                  </div>
                 </div>
-                {/* Expand/Collapse Hint */}
-                <div className="mt-4 pt-3 border-t border-gray-200 text-center">
-                  <p className="text-xs text-gray-500">
-                    {isExpanded ? 'Click to collapse' : 'Click to view full details'}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Crop Research Table View */}
+      {displayMode === 'table' && (
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-100 border-b-2 border-gray-200">
+                  <th className="px-4 py-3 text-left font-semibold text-gray-900">Crop Name</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-900">Category</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-900">Bay Area Fit</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-900">Revenue/Acre</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-900">Profit Margin</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-900">Growing Time</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-900">Labor</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-900">Market Demand</th>
+                  <th className="px-4 py-3 text-center font-semibold text-gray-900">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedCrops.map((crop, idx) => (
+                  <tr key={crop.id} className={`border-b border-gray-200 hover:bg-gray-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                    <td className="px-4 py-3 font-medium text-gray-900">{crop.name}</td>
+                    <td className="px-4 py-3 text-gray-600">{crop.category}</td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={`text-lg ${getSuitabilityColor(crop.bayAreaSuitability)}`}>
+                        {getSuitabilityStars(crop.bayAreaSuitability)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right text-emerald-700 font-semibold">{crop.annualRevenuePerAcre}</td>
+                    <td className="px-4 py-3 text-right text-green-700 font-semibold">{crop.profitMargin}</td>
+                    <td className="px-4 py-3 text-right text-gray-600">{crop.growingTime}</td>
+                    <td className="px-4 py-3 text-gray-600">{crop.laborIntensity}</td>
+                    <td className="px-4 py-3 text-gray-600">{crop.marketDemand}</td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => navigate(`/crop-research/${crop.id}`)}
+                        className="text-emerald-600 hover:text-emerald-700 font-medium text-sm hover:underline"
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       {sortedCrops.length === 0 && (
         <Card className="text-center py-12">

@@ -8,6 +8,7 @@ import { getUserProfile } from '../services/userService';
 import { loadTestCropsData } from '../utils/loadTestData';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import ErrorMessage from '../components/ui/ErrorMessage';
+import NoOrganization from '../components/ui/NoOrganization';
 import PageHeader from '../components/ui/PageHeader';
 import Card from '../components/ui/Card';
 import Modal from '../components/ui/Modal';
@@ -62,7 +63,7 @@ export default function Crops() {
   };
   
   if (!currentOrganization) {
-    return <LoadingSpinner message="Loading organization..." />;
+    return <NoOrganization />;
   }
   
   if (loading) return <LoadingSpinner message="Loading crops..." />;

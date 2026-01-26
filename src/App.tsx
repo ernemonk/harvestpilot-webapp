@@ -1,6 +1,11 @@
 import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
+import FarmDashboard from './pages/FarmDashboard'
+import FarmModule from './pages/FarmModule'
 import Dashboard from './pages/Dashboard'
+import Device from './pages/Device'
+import DeviceSetup from './pages/DeviceSetup'
+import Alerts from './pages/Alerts'
 import Crops from './pages/Crops'
 import Harvests from './pages/Harvests'
 import Customers from './pages/Customers'
@@ -84,7 +89,7 @@ function App() {
               {currentUser && (
                 <div className="hidden md:ml-8 md:flex md:space-x-8">
                   <NavLink to="/" end className={navLinkClass}>
-                    Dashboard
+                    Farm
                   </NavLink>
                   <NavLink to="/crops" className={navLinkClass}>
                     Crops
@@ -92,20 +97,12 @@ function App() {
                   <NavLink to="/harvests" className={navLinkClass}>
                     Harvests
                   </NavLink>
-                  <NavLink to="/customers" className={navLinkClass}>
-                    Customers
-                  </NavLink>
-                  <NavLink to="/fields" className={navLinkClass}>
-                    Fields
-                  </NavLink>
                   <NavLink to="/crop-research" className={navLinkClass}>
                     Research
                   </NavLink>
-                  {canManageTeam() && (
-                    <NavLink to="/team" className={navLinkClass}>
-                      Team
-                    </NavLink>
-                  )}
+                  <NavLink to="/alerts" className={navLinkClass}>
+                    Alerts
+                  </NavLink>
                 </div>
               )}
             </div>
@@ -228,7 +225,7 @@ function App() {
           <div className="md:hidden border-t border-gray-200">
             <div className="pt-2 pb-3 space-y-1">
               <NavLink to="/" end className={mobileNavLinkClass}>
-                Dashboard
+                Farm Dashboard
               </NavLink>
               <NavLink to="/crops" className={mobileNavLinkClass}>
                 Crops
@@ -236,30 +233,16 @@ function App() {
               <NavLink to="/harvests" className={mobileNavLinkClass}>
                 Harvests
               </NavLink>
-              <NavLink to="/customers" className={mobileNavLinkClass}>
-                Customers
-              </NavLink>
-              <NavLink to="/fields" className={mobileNavLinkClass}>
-                Fields
-              </NavLink>
               <NavLink to="/crop-research" className={mobileNavLinkClass}>
                 Research
               </NavLink>
-              {canManageTeam() && (
-                <NavLink to="/team" className={mobileNavLinkClass}>
-                  Team
-                </NavLink>
-              )}
+              <NavLink to="/alerts" className={mobileNavLinkClass}>
+                Alerts
+              </NavLink>
             </div>
             <div className="pt-4 pb-3 border-t border-gray-200">
               <div className="flex items-center px-4">
-                <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary-100 text-primary-700 font-semibold">
-                  {(currentUser.displayName || currentUser.email || 'U').charAt(0).toUpperCase()}
-                </div>
-                <div className="ml-3 flex-1">
-                  <div className="text-base font-medium text-gray-800">
-                    {currentUser.displayName || 'User'}
-                  </div>
+                <div className="ml-3">
                   <div className="text-sm font-medium text-gray-500 truncate">
                     {currentUser.email}
                   </div>
@@ -286,18 +269,23 @@ function App() {
       {/* Main Content */}
       <main className="pt-16 py-6 px-4 sm:px-6 lg:px-8">
         <Routes>
-          <Route path="/fields" element={<PrivateRoute><Fields /></PrivateRoute>} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/accept-invite" element={<AcceptInvite />} />
-          <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/" element={<PrivateRoute><FarmDashboard /></PrivateRoute>} />
+          <Route path="/farm-module/:moduleId" element={<PrivateRoute><FarmModule /></PrivateRoute>} />
+          <Route path="/device" element={<PrivateRoute><Device /></PrivateRoute>} />
+          <Route path="/device/setup" element={<PrivateRoute><DeviceSetup /></PrivateRoute>} />
+          <Route path="/alerts" element={<PrivateRoute><Alerts /></PrivateRoute>} />
           <Route path="/crops" element={<PrivateRoute><Crops /></PrivateRoute>} />
           <Route path="/harvests" element={<PrivateRoute><Harvests /></PrivateRoute>} />
-          <Route path="/customers" element={<PrivateRoute><Customers /></PrivateRoute>} />
-          <Route path="/team" element={<PrivateRoute><Team /></PrivateRoute>} />
           <Route path="/crop-research" element={<PrivateRoute><CropResearch /></PrivateRoute>} />
           <Route path="/crop-research/:id" element={<PrivateRoute><CropResearchDetail /></PrivateRoute>} />
+          {/* Legacy routes - keep for backward compatibility */}
+          <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/customers" element={<PrivateRoute><Customers /></PrivateRoute>} />
+          <Route path="/fields" element={<PrivateRoute><Fields /></PrivateRoute>} />
         </Routes>
       </main>
     </div>

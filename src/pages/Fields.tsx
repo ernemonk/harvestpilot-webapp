@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import ErrorMessage from '../components/ui/ErrorMessage';
+import NoOrganization from '../components/ui/NoOrganization';
 import PageHeader from '../components/ui/PageHeader';
 import StatCard from '../components/ui/StatCard';
 import Modal from '../components/ui/Modal';
@@ -26,7 +27,7 @@ export default function Fields() {
   const { data: fields, loading, error, refetch } = useFirestoreList<Field>(fetchFields);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
-  if (!currentOrganization) return <LoadingSpinner message="Loading organization..." />;
+  if (!currentOrganization) return <NoOrganization />;
   if (loading) return <LoadingSpinner message="Loading fields..." />;
   if (error) return <ErrorMessage message={`Error loading fields: ${error}`} />;
 
