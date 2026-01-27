@@ -79,6 +79,7 @@ export default function DevicesSection({ moduleId }: DevicesSectionProps) {
               icon="📡"
               devices={sensors}
               onDeviceClick={setSelectedDevice}
+              moduleId={moduleId}
             />
           )}
 
@@ -89,6 +90,7 @@ export default function DevicesSection({ moduleId }: DevicesSectionProps) {
               icon="⚙️"
               devices={actuators}
               onDeviceClick={setSelectedDevice}
+              moduleId={moduleId}
             />
           )}
 
@@ -99,6 +101,7 @@ export default function DevicesSection({ moduleId }: DevicesSectionProps) {
               icon="📷"
               devices={cameras}
               onDeviceClick={setSelectedDevice}
+              moduleId={moduleId}
             />
           )}
         </div>
@@ -128,7 +131,7 @@ export default function DevicesSection({ moduleId }: DevicesSectionProps) {
 // SUB-COMPONENTS
 // ============================================
 
-function DeviceGroup({ title, icon, devices, onDeviceClick }: any) {
+function DeviceGroup({ title, icon, devices, onDeviceClick, moduleId }: any) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
@@ -140,14 +143,58 @@ function DeviceGroup({ title, icon, devices, onDeviceClick }: any) {
       </div>
       <div className="divide-y divide-gray-200">
         {devices.map((device: ModuleDevice) => (
-          <DeviceRow key={device.id} device={device} onClick={() => onDeviceClick(device)} />
+          <DeviceRow key={device.id} device={device} onClick={() => onDeviceClick(device)} moduleId={moduleId} />
         ))}
       </div>
     </div>
   );
 }
 
-function DeviceRow({ device, onClick }: { device: ModuleDevice; onClick: () => void }) {
+function DeviceRow({ device, onClick, moduleId }: { device: ModuleDevice; onClick: () => void; moduleId?: string }) {
+  const [toggling, setToggling] = useState(false);
+  const [isOn, setIsOn] = useState(false);
+
+  // Subscribe to gpioState for this device
+  useEffect(() => {
+    if (!moduleId || device.type !== 'actuator' || device.gpioPin === undefined) return;
+
+    const deviceRef = doc(db, 'devices', moduleId);
+    const unsubscribe = onSnapshot(deviceRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        const gpioState = data.gpioState || {};
+        const pinState = gpioState[device.gpioPin!];
+        if (pinState) {
+          setIsOn(pinState.state === true);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [moduleId, device.gpioPin, device.type]);
+
+  const handleToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (device.type !== 'actuator' || device.gpioPin === undefined || !moduleId) return;
+    
+    setToggling(true);
+    try {
+      const deviceRef = doc(db, 'devices', moduleId);
+      const newState = !isOn;
+      await updateDoc(deviceRef, {
+        [`gpioState.${device.gpioPin}.state`]: newState,
+        [`gpioState.${device.gpioPin}.lastUpdated`]: Date.now(),
+        [`gpioState.${device.gpioPin}.mode`]: 'output',
+        [`gpioState.${device.gpioPin}.function`]: device.subtype,
+      });
+      setIsOn(newState);
+    } catch (err) {
+      console.error('Toggle failed:', err);
+    } finally {
+      setToggling(false);
+    }
+  };
+
   const getTypeIcon = () => {
     const icons: Record<string, string> = {
       temperature: '🌡️',
@@ -175,12 +222,12 @@ function DeviceRow({ device, onClick }: { device: ModuleDevice; onClick: () => v
   };
 
   return (
-    <button
-      onClick={onClick}
-      className="w-full px-6 py-4 hover:bg-gray-50 transition-colors text-left"
-    >
+    <div className="w-full px-6 py-4 hover:bg-gray-50 transition-colors">
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4 flex-1">
+        <button
+          onClick={onClick}
+          className="flex items-center space-x-4 flex-1 text-left"
+        >
           <div className="text-3xl">{getTypeIcon()}</div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2">
@@ -190,22 +237,48 @@ function DeviceRow({ device, onClick }: { device: ModuleDevice; onClick: () => v
             <div className="flex items-center space-x-3 mt-1 text-sm text-gray-500">
               <span className="capitalize">{device.subtype.replace('_', ' ')}</span>
               {device.gpioPin !== undefined && <span>GPIO {device.gpioPin}</span>}
-              {device.lastReading !== undefined && (
+              {device.lastReading !== undefined && device.type === 'sensor' && (
                 <span className="font-medium text-gray-900">
-                  {device.type === 'sensor' 
-                    ? `${typeof device.lastReading === 'number' ? Math.round(device.lastReading) : device.lastReading}`
-                    : device.lastReading ? 'ON' : 'OFF'
-                  }
+                  {typeof device.lastReading === 'number' ? Math.round(device.lastReading) : device.lastReading}
                 </span>
               )}
             </div>
           </div>
-        </div>
-        <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
+        </button>
+
+        {/* Toggle Switch for Actuators */}
+        {device.type === 'actuator' && (
+          <div className="flex items-center space-x-3 ml-4">
+            <span className={`text-sm font-medium ${isOn ? 'text-green-600' : 'text-gray-500'}`}>
+              {isOn ? 'ON' : 'OFF'}
+            </span>
+            <button
+              onClick={handleToggle}
+              disabled={toggling || device.gpioPin === undefined}
+              className={`relative inline-flex items-center w-14 h-7 rounded-full transition-colors ${
+                isOn ? 'bg-green-500' : 'bg-gray-300'
+              } ${toggling ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-90'}`}
+            >
+              <span className={`inline-block w-6 h-6 transform rounded-full bg-white shadow-md transition-transform ${
+                isOn ? 'translate-x-7' : 'translate-x-0.5'
+              }`}>
+                {toggling && (
+                  <span className="absolute inset-0 flex items-center justify-center">
+                    <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  </span>
+                )}
+              </span>
+            </button>
+          </div>
+        )}
+
+        <button onClick={onClick} className="ml-2 p-2 hover:bg-gray-100 rounded-lg">
+          <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       </div>
-    </button>
+    </div>
   );
 }
 

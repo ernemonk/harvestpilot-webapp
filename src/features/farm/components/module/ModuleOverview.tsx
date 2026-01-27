@@ -9,6 +9,8 @@ import { useState } from 'react';
 import type { FarmModule } from '../../types/farmModule';
 import { useDeviceState } from '../../hooks/useDeviceState';
 import { useCommands } from '../../hooks/useCommands';
+import GPIOPinManager from './GPIOPinManager';
+import ActuatorsControl from './ActuatorsControl';
 
 interface ModuleOverviewProps {
   module: FarmModule;
@@ -160,6 +162,12 @@ export default function ModuleOverview({ module }: ModuleOverviewProps) {
           <CropInfoCard cropConfig={deviceState.cropConfig} />
         </div>
       )}
+
+      {/* GPIO Pins Configuration */}
+      <GPIOPinManager deviceId={module.deviceId} platform={module.platform || 'raspberry-pi'} />
+
+      {/* Actuators Control */}
+      <ActuatorsControl deviceId={module.deviceId} />
     </div>
   );
 }
