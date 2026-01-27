@@ -179,12 +179,9 @@ export default function DeviceSetup() {
           }
         }
       } else {
-        // Device doesn't exist yet - this is normal, Pi will register when it connects
-        // Allow user to proceed anyway to set up the device preemptively
+        // Device doesn't exist - must power on Pi first
         setDeviceExists(false);
-        setError(null);
-        // Move to next step even if device not found
-        setStep(2);
+        setError('Device not found. Make sure your Raspberry Pi is powered on and connected to WiFi. Wait 30-60 seconds for it to register.');
       }
     } catch (err) {
       console.error('Error verifying device:', err);
@@ -201,17 +198,25 @@ export default function DeviceSetup() {
     setError('');
     
     try {
-      // Get existing device to check if first user
+      // Device MUST exist to be added
       const deviceRef = doc(db, 'devices', deviceId.trim());
       const deviceSnap = await getDoc(deviceRef);
-      const isFirstUser = !deviceSnap.exists();
+      
+      if (!deviceSnap.exists()) {
+        setError('Device not found. Your Raspberry Pi must be powered on and registered first. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      const existingData = deviceSnap.data();
+      const isFirstUser = !existingData.firstOwnerId;
       
       // Prepare update data
       const updateData: any = {
         deviceId: deviceId.trim(),
         deviceName: deviceName || `HarvestPilot ${deviceId.slice(-4)}`,
         organizationId: currentOrganization.id,
-        status: 'offline', // Will be set to online when Pi connects
+        status: 'connecting', // Will be set to online when Pi syncs
         autopilotMode: 'on',
         lastHeartbeat: 0,
         lastSyncAt: null,
@@ -233,7 +238,6 @@ export default function DeviceSetup() {
       // If first user, set up multi-user sharing structure
       if (isFirstUser) {
         updateData.firstOwnerId = currentUser.uid;
-        updateData.createdAt = Date.now();
         // Default: open access (allow any user)
         updateData.accessControl = {
           mode: 'open', // 'open' | 'whitelist'
@@ -244,7 +248,6 @@ export default function DeviceSetup() {
         updateData.users = [currentUser.uid];
       } else {
         // Existing device: add current user if not already added
-        const existingData = deviceSnap.data();
         const currentUsers = existingData.users || [];
         
         if (!currentUsers.includes(currentUser.uid)) {
