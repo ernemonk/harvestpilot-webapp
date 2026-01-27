@@ -65,18 +65,21 @@ export default function FarmDashboard() {
       const deviceData: DeviceStatus[] = snapshot.docs.map(doc => {
         const data = doc.data();
         const lastHeartbeat = data.lastHeartbeat as Timestamp;
-        const now = Timestamp.now();
         
-        // Safely compute time since heartbeat
-        let minutesSinceHeartbeat = 999; // Default to "offline"
-        if (lastHeartbeat && lastHeartbeat.seconds) {
-          minutesSinceHeartbeat = (now.seconds - lastHeartbeat.seconds) / 60;
+        // Use the stored status field from Firebase (computed on backend)
+        // Fall back to computing from heartbeat if status is missing
+        let status: 'online' | 'offline' = data.status || 'offline';
+        
+        if (!data.status && lastHeartbeat) {
+          const now = Timestamp.now();
+          const minutesSinceHeartbeat = (now.seconds - lastHeartbeat.seconds) / 60;
+          status = minutesSinceHeartbeat < 5 ? 'online' : 'offline';
         }
         
         return {
           deviceId: doc.id,
           deviceName: data.deviceName || doc.id,
-          status: minutesSinceHeartbeat < 5 ? 'online' : 'offline',
+          status,
           lastHeartbeat,
           temperature: data.currentReading?.temperature,
           humidity: data.currentReading?.humidity,
