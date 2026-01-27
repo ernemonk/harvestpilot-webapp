@@ -113,7 +113,7 @@ export default function DeviceSetup() {
   const [cropConfig, setCropConfig] = useState(CROP_PRESETS.microgreens);
   const [customCropType, setCustomCropType] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [deviceExists, setDeviceExists] = useState<boolean | null>(null);
 
@@ -167,9 +167,12 @@ export default function DeviceSetup() {
           }
         }
       } else {
-        // Device doesn't exist yet - will be created when Pi syncs
+        // Device doesn't exist yet - this is normal, Pi will register when it connects
+        // Allow user to proceed anyway to set up the device preemptively
         setDeviceExists(false);
-        setError('Device not found. Make sure your Raspberry Pi is running and connected.');
+        setError(null);
+        // Move to next step even if device not found
+        setStep(2);
       }
     } catch (err) {
       console.error('Error verifying device:', err);
