@@ -18,6 +18,7 @@ export default function ModuleOverview({ module }: ModuleOverviewProps) {
   const { state: deviceState, loading } = useDeviceState(module.deviceId);
   const commands = useCommands(module.deviceId);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showDeviceInfo, setShowDeviceInfo] = useState(false);
 
   const handleQuickAction = async (action: string) => {
     setActionLoading(action);
@@ -73,10 +74,26 @@ export default function ModuleOverview({ module }: ModuleOverviewProps) {
         />
       </div>
 
-      {/* Device Information */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Device Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Device Information - Collapsible */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <button
+          onClick={() => setShowDeviceInfo(!showDeviceInfo)}
+          className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        >
+          <h3 className="text-lg font-semibold text-gray-900">Device Information</h3>
+          <svg
+            className={`w-5 h-5 text-gray-500 transition-transform ${showDeviceInfo ? 'rotate-180' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </button>
+
+        {showDeviceInfo && (
+          <div className="border-t border-gray-200 p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Identifiers */}
           <div className="space-y-4">
             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Identifiers</h4>
@@ -116,7 +133,9 @@ export default function ModuleOverview({ module }: ModuleOverviewProps) {
             <InfoItem label="Last Sync" value={formatLastSeen(module.lastSyncAt)} />
             <InfoItem label="Initialized" value={module.initializedAt ? new Date(module.initializedAt).toLocaleDateString() : '--'} />
           </div>
-        </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
