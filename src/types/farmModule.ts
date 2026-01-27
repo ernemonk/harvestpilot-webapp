@@ -17,6 +17,7 @@ export interface FarmModule {
   hostname?: string;
   hardwareSerial?: string;
   platform?: string;
+  os?: string;
   firmwareVersion?: string;
   lastHeartbeat: Timestamp;
   lastSyncAt?: Timestamp;

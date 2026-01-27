@@ -97,7 +97,7 @@ export default function ModuleOverview({ module }: ModuleOverviewProps) {
           <div className="space-y-4">
             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">System</h4>
             <InfoItem label="Platform" value={module.platform || '--'} />
-            <InfoItem label="Firmware" value={module.firmwareVersion || 'Unknown'} />
+            <InfoItem label="OS" value={module.os || '--'} />
             <InfoItem label="Status" value={
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                 module.status === 'online' 

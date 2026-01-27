@@ -44,6 +44,7 @@ export function useFarmModule(moduleId: string | undefined): UseFarmModuleResult
             hostname: data.hostname,
             hardwareSerial: data.hardware_serial || data.hardwareSerial,
             platform: data.platform,
+            os: data.os,
             firmwareVersion: data.firmwareVersion || data.firmware_version,
             lastHeartbeat: data.lastHeartbeat?.toMillis?.() ?? data.lastHeartbeat ?? Date.now(),
             lastSyncAt: data.lastSyncAt?.toMillis?.() ?? data.lastSyncAt ?? null,
