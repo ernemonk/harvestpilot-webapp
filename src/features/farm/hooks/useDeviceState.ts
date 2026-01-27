@@ -76,7 +76,22 @@ export function useDeviceState(deviceId: string | null | undefined): UseDeviceSt
       docRef,
       (snapshot) => {
         if (snapshot.exists()) {
-          setState(snapshot.data() as DeviceState);
+          const data = snapshot.data();
+          // Convert Firestore Timestamps to milliseconds
+          const convertedData: DeviceState = {
+            ...data as DeviceState,
+            lastHeartbeat: data.lastHeartbeat?.toMillis?.() ?? data.lastHeartbeat ?? Date.now(),
+            lastSyncAt: data.lastSyncAt?.toMillis?.() ?? data.lastSyncAt ?? null,
+            currentReading: data.currentReading ? {
+              ...data.currentReading,
+              timestamp: data.currentReading.timestamp?.toMillis?.() ?? data.currentReading.timestamp ?? Date.now()
+            } : null,
+            cropConfig: data.cropConfig ? {
+              ...data.cropConfig,
+              plantedAt: data.cropConfig.plantedAt?.toMillis?.() ?? data.cropConfig.plantedAt ?? Date.now()
+            } : null
+          };
+          setState(convertedData);
         } else {
           setState(null);
         }

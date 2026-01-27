@@ -57,12 +57,9 @@ export default function FarmDashboard() {
       return;
     }
 
-    // Real-time listener for all devices in organization
+    // Real-time listener for all devices
     const devicesRef = collection(db, 'devices');
-    const devicesQuery = query(
-      devicesRef,
-      where('organizationId', '==', currentOrganization.id)
-    );
+    const devicesQuery = query(devicesRef);
 
     const unsubscribeDevices = onSnapshot(devicesQuery, (snapshot) => {
       const deviceData: DeviceStatus[] = snapshot.docs.map(doc => {
