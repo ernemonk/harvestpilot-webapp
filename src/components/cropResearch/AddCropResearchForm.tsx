@@ -66,8 +66,9 @@ export default function AddCropResearchForm({ onSuccess, onCancel, userId, organ
 
       await cropResearchService.createCropResearch(cropResearchData);
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || 'Failed to create crop research entry');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create crop research entry';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

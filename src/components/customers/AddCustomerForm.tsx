@@ -116,7 +116,7 @@ export default function AddCustomerForm({ onSuccess, onCancel, userId, organizat
           <select
             id="type"
             value={formData.type}
-            onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+            onChange={(e) => setFormData({ ...formData, type: e.target.value as 'restaurant' | 'farmers-market' | 'grocery' | 'asian-market' | 'wholesale' | 'individual' })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
             required
           >

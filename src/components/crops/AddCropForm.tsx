@@ -61,8 +61,9 @@ export default function AddCropForm({ onSuccess, onCancel, userId, organizationI
 
       await cropService.createCrop(cropData);
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || 'Failed to create crop');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create crop';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

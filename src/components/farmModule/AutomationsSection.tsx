@@ -126,7 +126,7 @@ export default function AutomationsSection({ moduleId }: AutomationsSectionProps
 // RULES VIEW
 // ============================================
 
-function RulesView({ rules, moduleId }: { rules: AutomationRule[]; moduleId: string }) {
+function RulesView({ rules }: { rules: AutomationRule[] }) {
   const [editingRule, setEditingRule] = useState<AutomationRule | null>(null);
 
   if (rules.length === 0) {
@@ -256,7 +256,7 @@ function RuleCard({ rule, onEdit }: { rule: AutomationRule; onEdit: (rule: Autom
 // SCHEDULES VIEW
 // ============================================
 
-function SchedulesView({ schedules, moduleId }: { schedules: Schedule[]; moduleId: string }) {
+function SchedulesView({ schedules }: { schedules: Schedule[] }) {
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
 
   if (schedules.length === 0) {
@@ -371,7 +371,7 @@ function ScheduleCard({ schedule, onEdit }: { schedule: Schedule; onEdit: (s: Sc
 // MODALS (PLACEHOLDERS FOR NOW)
 // ============================================
 
-function AddAutomationModal({ moduleId, type, onClose }: any) {
+function AddAutomationModal({ moduleId, type, onClose }: { moduleId: string; type: 'rules' | 'schedules'; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
@@ -387,7 +387,7 @@ function AddAutomationModal({ moduleId, type, onClose }: any) {
   );
 }
 
-function EditRuleModal({ rule, onClose }: any) {
+function EditRuleModal({ rule, onClose }: { rule: AutomationRule; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
@@ -401,7 +401,7 @@ function EditRuleModal({ rule, onClose }: any) {
   );
 }
 
-function EditScheduleModal({ schedule, onClose }: any) {
+function EditScheduleModal({ schedule, onClose }: { schedule: Schedule; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
