@@ -64,12 +64,12 @@ export default function ModuleOverview({ module }: ModuleOverviewProps) {
           subtitle={`MAC: ${module.macAddress || 'Unknown'}`}
         />
 
-        {/* Firmware */}
+        {/* OS */}
         <StatusCard
-          icon="⚡"
-          title="Firmware"
-          value={module.firmwareVersion || 'Unknown'}
-          subtitle="System up to date"
+          icon="⚙️"
+          title="OS"
+          value={module.os || 'Unknown'}
+          subtitle="Linux-based system"
         />
       </div>
 
