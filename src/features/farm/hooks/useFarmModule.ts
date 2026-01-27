@@ -24,14 +24,21 @@ export function useFarmModule(moduleId: string | undefined): UseFarmModuleResult
       return;
     }
 
-    // Subscribe to module document
-    const moduleRef = doc(db, 'modules', moduleId);
+    // Subscribe to device document (farm modules map to devices)
+    const deviceRef = doc(db, 'devices', moduleId);
     
     const unsubscribe = onSnapshot(
-      moduleRef,
+      deviceRef,
       (snapshot) => {
         if (snapshot.exists()) {
-          setModule({ id: snapshot.id, ...snapshot.data() } as FarmModule);
+          const data = snapshot.data();
+          // Convert Firestore Timestamps to milliseconds for consistency
+          const convertedData: any = {
+            ...data,
+            lastHeartbeat: data.lastHeartbeat?.toMillis?.() ?? data.lastHeartbeat ?? Date.now(),
+            lastSyncAt: data.lastSyncAt?.toMillis?.() ?? data.lastSyncAt ?? null,
+          };
+          setModule({ id: snapshot.id, ...convertedData } as FarmModule);
         } else {
           setModule(null);
           setError(new Error('Module not found'));

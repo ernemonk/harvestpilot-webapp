@@ -66,7 +66,12 @@ export default function FarmDashboard() {
         const data = doc.data();
         const lastHeartbeat = data.lastHeartbeat as Timestamp;
         const now = Timestamp.now();
-        const minutesSinceHeartbeat = (now.seconds - lastHeartbeat.seconds) / 60;
+        
+        // Safely compute time since heartbeat
+        let minutesSinceHeartbeat = 999; // Default to "offline"
+        if (lastHeartbeat && lastHeartbeat.seconds) {
+          minutesSinceHeartbeat = (now.seconds - lastHeartbeat.seconds) / 60;
+        }
         
         return {
           deviceId: doc.id,
