@@ -12,7 +12,6 @@ import Customers from './pages/Customers'
 import Fields from './pages/Fields'
 import CropResearch from './pages/CropResearch'
 import CropResearchDetail from './pages/CropResearchDetail'
-import Team from './pages/Team'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
 import ForgotPassword from './pages/ForgotPassword'
@@ -23,7 +22,7 @@ import { usePermissions } from './hooks/usePermissions'
 
 function App() {
   const { currentUser, logout, currentOrganization, allOrganizations, switchOrganization } = useAuth()
-  const { canManageTeam, getRoleName, getRoleBadgeColor, userRole } = usePermissions()
+  const { getRoleName, getRoleBadgeColor, userRole } = usePermissions()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const navigate = useNavigate()

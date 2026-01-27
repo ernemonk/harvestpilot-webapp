@@ -33,7 +33,6 @@ export default function DeviceSharing({
 }: DeviceSharingProps) {
   const isFirstOwner = currentUserId === firstOwnerId;
   const [loading, setLoading] = useState(false);
-  const [newUserEmail, setNewUserEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 

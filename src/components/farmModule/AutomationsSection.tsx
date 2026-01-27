@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, updateDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import type { AutomationRule, Schedule } from '../../types/farmModule';
 
@@ -195,9 +195,6 @@ function RuleCard({ rule, onEdit }: { rule: AutomationRule; onEdit: (rule: Autom
               {rule.enabled ? 'Active' : 'Paused'}
             </span>
           </div>
-          {rule.description && (
-            <p className="text-sm text-gray-600">{rule.description}</p>
-          )}
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -226,7 +223,7 @@ function RuleCard({ rule, onEdit }: { rule: AutomationRule; onEdit: (rule: Autom
         <div className="flex items-center space-x-2 text-sm">
           <span className="font-medium text-gray-700">IF</span>
           <span className="px-3 py-1 bg-white border border-gray-300 rounded-md font-mono">
-            {rule.condition.sensorId}
+            {rule.condition.deviceId}
           </span>
           <span className="font-bold text-gray-900">{getOperatorSymbol()}</span>
           <span className="px-3 py-1 bg-white border border-gray-300 rounded-md font-mono">
@@ -236,11 +233,11 @@ function RuleCard({ rule, onEdit }: { rule: AutomationRule; onEdit: (rule: Autom
         <div className="flex items-center space-x-2 text-sm">
           <span className="font-medium text-gray-700">THEN</span>
           <span className="px-3 py-1 bg-white border border-gray-300 rounded-md font-mono">
-            {rule.action.actuatorId}
+            {rule.action.targetDeviceId}
           </span>
           <span className="font-bold text-gray-900">→</span>
           <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-md font-medium capitalize">
-            {rule.action.command}
+            {rule.action.type}
             {rule.action.duration && ` for ${rule.action.duration}s`}
           </span>
         </div>
