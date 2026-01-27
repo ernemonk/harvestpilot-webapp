@@ -62,6 +62,7 @@ export interface Reading {
   id: string;
   moduleId: string;
   deviceId: string; // Which sensor/actuator
+  sensorType?: SensorType; // Temperature, humidity, soil moisture, etc.
   timestamp: Timestamp;
   value: number | boolean;
   unit?: string; // °F, %, etc.
@@ -131,6 +132,8 @@ export interface HarvestCycle {
   variety?: string;
   startDate: Timestamp;
   currentStage: HarvestStage;
+  status?: 'pending' | 'active' | 'completed' | 'failed';
+  expectedDays?: number;
   stageHistory: {
     stage: HarvestStage;
     startedAt: Timestamp;
@@ -138,6 +141,7 @@ export interface HarvestCycle {
     notes?: string;
   }[];
   expectedHarvestDate: Timestamp;
+  harvestDate?: Timestamp;
   actualHarvestDate?: Timestamp;
   yieldWeight?: number; // in oz or grams
   yieldUnit?: 'oz' | 'g' | 'lbs' | 'kg';
@@ -160,6 +164,7 @@ export interface CameraConfig {
   snapshotUrl?: string; // HTTP endpoint for still image
   resolution?: string; // e.g., "1920x1080"
   fps?: number;
+  frameRate?: number;
   lastSnapshotAt?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -174,7 +179,10 @@ export interface GrowthMetrics {
   cycleId: string;
   date: string; // YYYY-MM-DD
   avgTemperature: number;
+  minTemperature?: number;
+  maxTemperature?: number;
   avgHumidity: number;
+  avgSoilMoisture?: number;
   lightHours: number;
   wateringEvents: number;
   totalWaterMl?: number;

@@ -105,9 +105,9 @@ export default function AutomationsSection({ moduleId }: AutomationsSectionProps
 
       {/* Content */}
       {activeTab === 'rules' ? (
-        <RulesView rules={rules} moduleId={moduleId} />
+        <RulesView rules={rules} />
       ) : (
-        <SchedulesView schedules={schedules} moduleId={moduleId} />
+        <SchedulesView schedules={schedules} />
       )}
 
       {/* Add Modal */}
@@ -238,7 +238,7 @@ function RuleCard({ rule, onEdit }: { rule: AutomationRule; onEdit: (rule: Autom
           <span className="font-bold text-gray-900">→</span>
           <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-md font-medium capitalize">
             {rule.action.type}
-            {rule.action.duration && ` for ${rule.action.duration}s`}
+            {rule.action.value && ` for ${rule.action.value}s`}
           </span>
         </div>
       </div>
@@ -301,9 +301,9 @@ function ScheduleCard({ schedule, onEdit }: { schedule: Schedule; onEdit: (s: Sc
   };
 
   const getScheduleDescription = () => {
-    if (schedule.type === 'time') {
+    if (schedule.scheduleType === 'time_based') {
       const days = schedule.daysOfWeek?.join(', ') || 'Daily';
-      return `At ${schedule.time} on ${days}`;
+      return `At ${schedule.startTime} on ${days}`;
     } else {
       return `Every ${schedule.intervalMinutes} minutes`;
     }
@@ -327,16 +327,16 @@ function ScheduleCard({ schedule, onEdit }: { schedule: Schedule; onEdit: (s: Sc
           <div className="flex items-center space-x-4 text-sm">
             <div className="flex items-center space-x-2">
               <span className="text-gray-500">Device:</span>
-              <span className="font-mono text-gray-900">{schedule.actuatorId}</span>
+              <span className="font-mono text-gray-900">{schedule.deviceId}</span>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-gray-500">Action:</span>
-              <span className="font-medium text-primary-600 capitalize">{schedule.action}</span>
+              <span className="text-gray-500">Type:</span>
+              <span className="font-medium text-primary-600 capitalize">{schedule.scheduleType}</span>
             </div>
-            {schedule.duration && (
+            {schedule.durationSeconds && (
               <div className="flex items-center space-x-2">
                 <span className="text-gray-500">Duration:</span>
-                <span className="font-medium text-gray-900">{schedule.duration}s</span>
+                <span className="font-medium text-gray-900">{schedule.durationSeconds}s</span>
               </div>
             )}
           </div>
@@ -371,7 +371,7 @@ function ScheduleCard({ schedule, onEdit }: { schedule: Schedule; onEdit: (s: Sc
 // MODALS (PLACEHOLDERS FOR NOW)
 // ============================================
 
-function AddAutomationModal({ moduleId, type, onClose }: { moduleId: string; type: 'rules' | 'schedules'; onClose: () => void }) {
+function AddAutomationModal({ type, onClose }: { type: 'rules' | 'schedules'; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">

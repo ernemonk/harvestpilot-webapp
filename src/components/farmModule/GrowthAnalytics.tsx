@@ -50,19 +50,21 @@ export default function GrowthAnalyticsSection({ moduleId }: GrowthAnalyticsSect
   useEffect(() => {
     if (readings.length === 0) return;
 
-    const tempReadings = readings.filter(r => r.sensorType === 'temperature').map(r => r.value);
-    const humidityReadings = readings.filter(r => r.sensorType === 'humidity').map(r => r.value);
-    const soilReadings = readings.filter(r => r.sensorType === 'soil_moisture').map(r => r.value);
+    const tempReadings = readings.filter(r => r.sensorType === 'temperature').map(r => (typeof r.value === 'number' ? r.value : 0));
+    const humidityReadings = readings.filter(r => r.sensorType === 'humidity').map(r => (typeof r.value === 'number' ? r.value : 0));
+    const soilReadings = readings.filter(r => r.sensorType === 'soil_moisture').map(r => (typeof r.value === 'number' ? r.value : 0));
 
     setMetrics({
-      date: new Date(),
+      date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
       avgTemperature: average(tempReadings),
       avgHumidity: average(humidityReadings),
       avgSoilMoisture: average(soilReadings),
-      minTemperature: Math.min(...tempReadings) || 0,
-      maxTemperature: Math.max(...tempReadings) || 0,
+      minTemperature: tempReadings.length > 0 ? Math.min(...tempReadings) : 0,
+      maxTemperature: tempReadings.length > 0 ? Math.max(...tempReadings) : 0,
       totalLightHours: 0, // TODO: Calculate from light sensor
       wateringEvents: readings.filter(r => r.sensorType === 'pump').length,
+      moduleId,
+      cycleId: 'current', // TODO: Get from context
     });
   }, [readings]);
 
@@ -206,7 +208,7 @@ function SummaryCards({ metrics, timeRange }: { metrics: GrowthMetrics; timeRang
   );
 }
 
-function LineChart({ data, metric, timeRange }: { data: Reading[]; metric: ChartMetric; timeRange: TimeRange }) {
+function LineChart({ data, metric }: { data: Reading[]; metric: ChartMetric; timeRange: TimeRange }) {
   if (data.length === 0) {
     return (
       <div className="h-64 flex items-center justify-center text-gray-400">

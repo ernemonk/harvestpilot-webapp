@@ -120,7 +120,7 @@ export default function DevicesSection({ moduleId }: DevicesSectionProps) {
         <DeviceDetailsDrawer
           device={selectedDevice}
           onClose={() => setSelectedDevice(null)}
-          onUpdate={(updated) => setSelectedDevice(updated)}
+          onUpdate={(updated: ModuleDevice) => setSelectedDevice(updated)}
         />
       )}
     </div>

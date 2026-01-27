@@ -506,6 +506,7 @@ function getStageIcon(stage: HarvestStage): string {
     light_exposure: '💡',
     growth: '🌿',
     harvest: '✂️',
+    completed: '✅',
   };
   return icons[stage] || '🌱';
 }
@@ -518,6 +519,7 @@ function getStageProgress(stage: HarvestStage): number {
     light_exposure: 60,
     growth: 80,
     harvest: 100,
+    completed: 100,
   };
   return progress[stage] || 0;
 }
@@ -530,6 +532,7 @@ function getStageDescription(stage: HarvestStage): string {
     light_exposure: 'Remove covers, introduce light',
     growth: 'Maintain optimal conditions for growth',
     harvest: 'Ready to harvest and package',
+    completed: 'Harvest cycle completed',
   };
   return descriptions[stage] || '';
 }
@@ -542,6 +545,7 @@ function getStageChecklist(stage: HarvestStage): { label: string; completed: boo
     light_exposure: ['Remove covers', 'Position lights 6" above', 'Adjust watering schedule'],
     growth: ['Monitor temperature', 'Maintain humidity 50-60%', 'Check for pests'],
     harvest: ['Check maturity', 'Prepare packaging', 'Clean cutting tools'],
+    completed: ['Final cleanup', 'Document results', 'Archive data'],
   };
 
   return (checklists[stage] || []).map(label => ({

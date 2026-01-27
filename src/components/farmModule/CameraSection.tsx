@@ -217,9 +217,7 @@ function CameraControls({ config, onCapture, capturing }: any) {
 }
 
 function LivePreview({ config }: { config: CameraConfig }) {
-  const [showPlaceholder, setShowPlaceholder] = useState(!config.streamUrl);
-
-  if (showPlaceholder) {
+  if (!config.streamUrl) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-200">

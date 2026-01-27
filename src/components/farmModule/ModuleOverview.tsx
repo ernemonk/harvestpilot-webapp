@@ -15,7 +15,7 @@ interface ModuleOverviewProps {
 }
 
 export default function ModuleOverview({ module }: ModuleOverviewProps) {
-  const { state: deviceState, loading } = useDeviceState(module.deviceId);
+  const { state: deviceState } = useDeviceState(module.deviceId);
   const commands = useCommands(module.deviceId);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showDeviceInfo, setShowDeviceInfo] = useState(false);
@@ -25,16 +25,16 @@ export default function ModuleOverview({ module }: ModuleOverviewProps) {
     try {
       switch (action) {
         case 'pump_start':
-          await commands.sendCommand('run_pump', { duration: 30 });
+          await commands.sendCommand('pump_on', { duration: 30 });
           break;
         case 'pump_stop':
-          await commands.sendCommand('stop_pump', {});
+          await commands.sendCommand('pump_off', {});
           break;
         case 'lights_on':
-          await commands.sendCommand('set_lights', { brightness: 100 });
+          await commands.sendCommand('lights_on', { brightness: 100 });
           break;
         case 'lights_off':
-          await commands.sendCommand('set_lights', { brightness: 0 });
+          await commands.sendCommand('lights_off', { brightness: 0 });
           break;
       }
     } catch (err) {
