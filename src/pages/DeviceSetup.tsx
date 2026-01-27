@@ -154,11 +154,23 @@ export default function DeviceSetup() {
       
       if (deviceSnap.exists()) {
         const data = deviceSnap.data();
-        // Check if already owned by someone else
-        if (data.ownerId && data.ownerId !== currentUser?.uid) {
-          setError('This device is already registered to another user.');
-          setDeviceExists(false);
+        
+        // Check if device has access control and if user is allowed
+        if (data.accessControl?.mode === 'whitelist') {
+          // Device is locked to specific users
+          if (!data.accessControl?.allowedUsers?.includes(currentUser?.uid)) {
+            setError('You do not have permission to access this device. Contact the device owner.');
+            setDeviceExists(false);
+          } else {
+            setDeviceExists(true);
+            // Pre-fill config if device has one
+            if (data.cropConfig) {
+              setCropConfig(data.cropConfig);
+              setSelectedPreset('custom');
+            }
+          }
         } else {
+          // Device is open for all users
           setDeviceExists(true);
           // Pre-fill config if device has one
           if (data.cropConfig) {
@@ -189,14 +201,15 @@ export default function DeviceSetup() {
     setError('');
     
     try {
-      // Create/update device document
+      // Get existing device to check if first user
       const deviceRef = doc(db, 'devices', deviceId.trim());
-      const cropType = selectedPreset === 'custom' ? customCropType : selectedPreset;
+      const deviceSnap = await getDoc(deviceRef);
+      const isFirstUser = !deviceSnap.exists();
       
-      await setDoc(deviceRef, {
+      // Prepare update data
+      const updateData: any = {
         deviceId: deviceId.trim(),
         deviceName: deviceName || `HarvestPilot ${deviceId.slice(-4)}`,
-        ownerId: currentUser.uid,
         organizationId: currentOrganization.id,
         status: 'offline', // Will be set to online when Pi connects
         autopilotMode: 'on',
@@ -204,7 +217,7 @@ export default function DeviceSetup() {
         lastSyncAt: null,
         currentReading: null,
         cropConfig: {
-          cropType,
+          cropType: selectedPreset === 'custom' ? customCropType : selectedPreset,
           plantedAt: Date.now(),
           ...cropConfig,
         },
@@ -214,9 +227,40 @@ export default function DeviceSetup() {
         lightsOn: false,
         lastIrrigationAt: null,
         nextIrrigationAt: null,
-        createdAt: Date.now(),
         updatedAt: Date.now(),
-      }, { merge: true });
+      };
+
+      // If first user, set up multi-user sharing structure
+      if (isFirstUser) {
+        updateData.firstOwnerId = currentUser.uid;
+        updateData.createdAt = Date.now();
+        // Default: open access (allow any user)
+        updateData.accessControl = {
+          mode: 'open', // 'open' | 'whitelist'
+          allowedUsers: [currentUser.uid],
+          lockedAt: null,
+        };
+        // Track all users who have access
+        updateData.users = [currentUser.uid];
+      } else {
+        // Existing device: add current user if not already added
+        const existingData = deviceSnap.data();
+        const currentUsers = existingData.users || [];
+        
+        if (!currentUsers.includes(currentUser.uid)) {
+          updateData.users = [...currentUsers, currentUser.uid];
+        }
+
+        // If device is in open mode, grant access automatically
+        if (existingData.accessControl?.mode === 'open') {
+          updateData.accessControl = {
+            ...existingData.accessControl,
+            allowedUsers: [...(existingData.accessControl?.allowedUsers || []), currentUser.uid],
+          };
+        }
+      }
+
+      await setDoc(deviceRef, updateData, { merge: true });
 
       // Store device ID locally for quick access
       localStorage.setItem('harvestpilot_device_id', deviceId.trim());
