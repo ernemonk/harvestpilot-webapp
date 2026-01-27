@@ -316,18 +316,12 @@ function DeviceCard({ device, navigate }: { device: DeviceStatus; navigate: any 
       </div>
 
       {/* Actions */}
-      <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex space-x-3">
+      <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
         <button
           onClick={() => navigate(`/farm-module/${device.deviceId}`)}
-          className="flex-1 px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          className="w-full px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-medium hover:bg-primary-700 transition-colors"
         >
           View Details
-        </button>
-        <button
-          onClick={() => navigate('/device', { state: { deviceId: device.deviceId, showControls: true } })}
-          className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-medium hover:bg-primary-700 transition-colors"
-        >
-          Controls
         </button>
       </div>
     </div>
