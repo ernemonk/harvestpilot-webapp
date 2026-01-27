@@ -296,7 +296,7 @@ function CropConfigCard({ cropConfig, deviceId }: { cropConfig: any; deviceId: s
 }
 
 export default function Device() {
-  const { currentUser, currentOrganization, organizationLoading } = useAuth();
+  const { currentUser, currentOrganization, loading: authLoading } = useAuth();
   
   // Get deviceId from user profile (set during device registration)
   const deviceId = (currentUser as any)?.deviceId || localStorage.getItem('harvestpilot_device_id');
@@ -307,7 +307,7 @@ export default function Device() {
   const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'settings'>('overview');
 
   // Show loading while checking organization
-  if (organizationLoading) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">

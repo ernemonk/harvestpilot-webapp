@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { db } from '../../../../config/firebase';
 import type { HarvestCycle, HarvestStage } from '../../types/farmModule';
 
 interface HarvestCycleSectionProps {

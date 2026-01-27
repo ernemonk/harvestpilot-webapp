@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
-import type { FarmModule } from '../types/farmModule';
+import type { FarmModule } from '../../../../types/farmModule';
 
 interface UseFarmModuleResult {
   module: FarmModule | null;

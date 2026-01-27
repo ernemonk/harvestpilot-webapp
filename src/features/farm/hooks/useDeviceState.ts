@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db } from '../../../config/firebase';
 
 // Types from contracts (inline for now, will be imported from schema)
 export interface SensorReading {

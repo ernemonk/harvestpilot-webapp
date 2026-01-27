@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db } from '../../../config/firebase';
 
 // Generate a UUID using crypto API
 const generateId = (): string => {

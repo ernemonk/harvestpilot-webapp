@@ -20,7 +20,7 @@ import {
   addDoc,
   setDoc
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db } from '../../config/firebase';
 
 interface MigrationStats {
   usersProcessed: number;

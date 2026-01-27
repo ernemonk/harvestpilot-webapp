@@ -1,5 +1,5 @@
 import { collection, addDoc, Timestamp, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db } from '../../config/firebase';
 
 export async function loadTestCropResearchData(userId: string): Promise<number> {
   // Fetch and parse the CSV file
@@ -21,7 +21,7 @@ export async function loadTestCropResearchData(userId: string): Promise<number> 
     let currentValue = '';
     let inQuotes = false;
     
-    for (let char of line) {
+    for (const char of line) {
       if (char === '"') {
         inQuotes = !inQuotes;
       } else if (char === ',' && !inQuotes) {
@@ -107,7 +107,7 @@ export async function loadTestCropsData(userId: string): Promise<number> {
     let currentValue = '';
     let inQuotes = false;
     
-    for (let char of line) {
+    for (const char of line) {
       if (char === '"') {
         inQuotes = !inQuotes;
       } else if (char === ',' && !inQuotes) {

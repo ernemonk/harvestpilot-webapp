@@ -1,0 +1,4 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+export default function Table({ headers, children }) {
+    return (_jsx("div", { className: "overflow-x-auto -mx-4 sm:mx-0", children: _jsx("div", { className: "inline-block min-w-full align-middle", children: _jsx("div", { className: "overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg", children: _jsxs("table", { className: "min-w-full divide-y divide-gray-200", children: [_jsx("thead", { className: "bg-gray-50", children: _jsx("tr", { children: headers.map((header, index) => (_jsx("th", { className: "px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap", children: header }, index))) }) }), _jsx("tbody", { className: "bg-white divide-y divide-gray-200", children: children })] }) }) }) }));
+}

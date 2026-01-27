@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
-import { useAuth } from '../contexts/AuthContext';
+import { db } from '../../config/firebase';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface UseFirestoreResult<T> {
   data: T | null;

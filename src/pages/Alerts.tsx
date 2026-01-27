@@ -12,7 +12,7 @@ import NoOrganization from '../components/ui/NoOrganization';
 type FilterType = 'all' | 'active' | 'resolved';
 
 export default function Alerts() {
-  const { currentUser, currentOrganization, organizationLoading } = useAuth();
+  const { currentUser, currentOrganization, loading: authLoading } = useAuth();
   
   // Get deviceId from user profile or localStorage
   const deviceId = (currentUser as any)?.deviceId || localStorage.getItem('harvestpilot_device_id');
@@ -21,7 +21,7 @@ export default function Alerts() {
   const [filter, setFilter] = useState<FilterType>('active');
 
   // Show loading while checking organization
-  if (organizationLoading) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">

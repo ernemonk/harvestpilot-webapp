@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react';
-import type { FarmModule } from '../../types/farmModule';
+import type { FarmModule } from '../../../../types/farmModule';
 import { useDeviceState } from '../../hooks/useDeviceState';
 import { useCommands } from '../../hooks/useCommands';
 import GPIOPinManager from './GPIOPinManager';

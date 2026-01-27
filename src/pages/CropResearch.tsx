@@ -390,7 +390,7 @@ export default function CropResearchPage() {
     switch (sortBy) {
       case 'suitability':
         return (b.bayAreaSuitability || 0) - (a.bayAreaSuitability || 0);
-      case 'revenue':
+      case 'revenue': {
         // Extract first number from revenue string (e.g., "$40,000-$100,000" -> 40000)
         const getRevenueValue = (str: string | undefined | null) => {
           if (!str) return 0;
@@ -398,7 +398,8 @@ export default function CropResearchPage() {
           return match ? parseInt(match[1].replace(/,/g, '')) : 0;
         };
         return getRevenueValue(b.annualRevenuePerAcre) - getRevenueValue(a.annualRevenuePerAcre);
-      case 'profit':
+      }
+      case 'profit': {
         // Extract first number from profit margin (e.g., "40-60%" -> 40)
         const getProfitValue = (str: string | undefined | null) => {
           if (!str) return 0;
@@ -406,6 +407,7 @@ export default function CropResearchPage() {
           return match ? parseInt(match[1]) : 0;
         };
         return getProfitValue(b.profitMargin) - getProfitValue(a.profitMargin);
+      }
       case 'growingTime':
         // Convert to days for proper sorting
         return getGrowingTimeDays(a.growingTime) - getGrowingTimeDays(b.growingTime);

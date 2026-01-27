@@ -13,23 +13,7 @@ export default function AcceptInvite() {
 
   const token = searchParams.get('token');
 
-  useEffect(() => {
-    if (!token) {
-      setStatus('error');
-      setMessage('Invalid invitation link. No token provided.');
-      return;
-    }
-
-    if (!currentUser) {
-      setStatus('login-required');
-      setMessage('Please log in or create an account to accept this invitation.');
-      return;
-    }
-
-    acceptInvitation();
-  }, [token, currentUser]);
-
-  async function acceptInvitation() {
+  const acceptInvitation = async () => {
     if (!token || !currentUser) return;
 
     try {
@@ -55,7 +39,23 @@ export default function AcceptInvite() {
       setStatus('error');
       setMessage(error.message || 'Failed to accept invitation. Please try again.');
     }
-  }
+  };
+
+  useEffect(() => {
+    if (!token) {
+      setStatus('error');
+      setMessage('Invalid invitation link. No token provided.');
+      return;
+    }
+
+    if (!currentUser) {
+      setStatus('login-required');
+      setMessage('Please log in or create an account to accept this invitation.');
+      return;
+    }
+
+    acceptInvitation();
+  }, [token, currentUser]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">

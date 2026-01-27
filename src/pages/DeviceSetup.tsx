@@ -103,7 +103,7 @@ const CROP_PRESETS: Record<string, CropPreset> = {
 };
 
 export default function DeviceSetup() {
-  const { currentUser, currentOrganization, organizationLoading } = useAuth();
+  const { currentUser, currentOrganization, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   
   const [step, setStep] = useState(1);
@@ -118,7 +118,7 @@ export default function DeviceSetup() {
   const [deviceExists, setDeviceExists] = useState<boolean | null>(null);
 
   // Show loading while checking organization
-  if (organizationLoading) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
