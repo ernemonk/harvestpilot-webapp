@@ -73,7 +73,52 @@ export default function ModuleOverview({ module }: ModuleOverviewProps) {
         />
       </div>
 
-      {/* Quick Actions */}
+      {/* Device Information */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Device Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Identifiers */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Identifiers</h4>
+            <InfoItem label="Device ID" value={module.deviceId} />
+            <InfoItem label="Device Name" value={module.deviceName || '--'} />
+            <InfoItem label="Hardware Serial" value={module.hardwareSerial || '--'} />
+          </div>
+
+          {/* Network Configuration */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Network</h4>
+            <InfoItem label="IP Address" value={module.ipAddress || 'Not Available'} />
+            <InfoItem label="MAC Address" value={module.macAddress || 'Unknown'} />
+            <InfoItem label="Hostname" value={module.hostname || '--'} />
+          </div>
+
+          {/* System Details */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">System</h4>
+            <InfoItem label="Platform" value={module.platform || '--'} />
+            <InfoItem label="Firmware" value={module.firmwareVersion || 'Unknown'} />
+            <InfoItem label="Status" value={
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                module.status === 'online' 
+                  ? 'bg-green-100 text-green-700' 
+                  : 'bg-gray-100 text-gray-700'
+              }`}>
+                {module.status === 'online' ? '🟢 Online' : '🔴 Offline'}
+              </span>
+            } />
+          </div>
+
+          {/* Timestamps */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Timestamps</h4>
+            <InfoItem label="Last Heartbeat" value={formatLastSeen(module.lastHeartbeat)} />
+            <InfoItem label="Last Sync" value={formatLastSeen(module.lastSyncAt)} />
+            <InfoItem label="Initialized" value={module.initializedAt ? new Date(module.initializedAt).toLocaleDateString() : '--'} />
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -376,4 +421,15 @@ function formatTimeUntil(timestamp: number): string {
   
   const days = Math.floor(hours / 24);
   return `in ${days}d`;
+}
+
+function InfoItem({ label, value }: { label: string; value: string | React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs text-gray-500 mb-1">{label}</p>
+      <p className="text-sm font-medium text-gray-900 break-all">
+        {typeof value === 'string' ? value : value}
+      </p>
+    </div>
+  );
 }

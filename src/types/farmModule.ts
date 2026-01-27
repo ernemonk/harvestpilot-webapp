@@ -7,14 +7,20 @@ import type { Timestamp } from 'firebase/firestore';
 export interface FarmModule {
   id: string; // e.g., "module-rack-a"
   deviceId: string; // e.g., "raspserver-001"
+  deviceName?: string; // Device display name
   name: string; // e.g., "Greenhouse Rack A"
   location?: string; // e.g., "Greenhouse - North Wall"
   organizationId: string;
   status: 'online' | 'offline' | 'error';
   ipAddress?: string;
   macAddress?: string;
+  hostname?: string;
+  hardwareSerial?: string;
+  platform?: string;
   firmwareVersion?: string;
   lastHeartbeat: Timestamp;
+  lastSyncAt?: Timestamp;
+  initializedAt?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
