@@ -32,13 +32,27 @@ export function useFarmModule(moduleId: string | undefined): UseFarmModuleResult
       (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
-          // Convert Firestore Timestamps to milliseconds for consistency
+          // Convert Firebase snake_case fields to camelCase and Timestamps to milliseconds
           const convertedData: any = {
-            ...data,
+            id: snapshot.id,
+            deviceId: data.deviceId || data.config_id || snapshot.id,
+            deviceName: data.deviceName || snapshot.id,
+            name: data.deviceName || snapshot.id,
+            status: data.status || 'offline',
+            ipAddress: data.ip_address || data.ipAddress,
+            macAddress: data.mac_address || data.macAddress,
+            hostname: data.hostname,
+            hardwareSerial: data.hardware_serial || data.hardwareSerial,
+            platform: data.platform,
+            firmwareVersion: data.firmwareVersion || data.firmware_version,
             lastHeartbeat: data.lastHeartbeat?.toMillis?.() ?? data.lastHeartbeat ?? Date.now(),
             lastSyncAt: data.lastSyncAt?.toMillis?.() ?? data.lastSyncAt ?? null,
+            initializedAt: data.initialized_at || data.initializedAt,
+            organizationId: data.organizationId || 'default-org',
+            createdAt: data.createdAt?.toMillis?.() ?? Date.now(),
+            updatedAt: data.updatedAt?.toMillis?.() ?? Date.now(),
           };
-          setModule({ id: snapshot.id, ...convertedData } as FarmModule);
+          setModule(convertedData as FarmModule);
         } else {
           setModule(null);
           setError(new Error('Module not found'));
