@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local environment and logs (keep secrets tracked for now - not removing from history)
+.env
+sevice-account.json
+logs/
