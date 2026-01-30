@@ -21,7 +21,7 @@ export default function Login() {
   }
 
   return (
-    <AuthLayout title="Farm Intelligence" subtitle="Sign in to your account">
+    <AuthLayout title="Sign in" subtitle="Sign in to your account">
       <LoginForm onSubmit={handleSubmit} error={error} />
 
       <div className="mt-8">

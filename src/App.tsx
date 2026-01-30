@@ -19,6 +19,7 @@ import AcceptInvite from './pages/AcceptInvite'
 import PrivateRoute from './components/PrivateRoute'
 import { useAuth } from './contexts/AuthContext'
 import { usePermissions } from './hooks/usePermissions'
+import logoIcon from './assets/favico.png'
 
 function App() {
   const { currentUser, logout, currentOrganization, allOrganizations, switchOrganization } = useAuth()
@@ -77,12 +78,9 @@ function App() {
           <div className="flex justify-between items-center h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <NavLink to="/" className="flex items-center space-x-2">
-                  <span className="text-2xl sm:text-3xl">🌱</span>
-                  <div className="flex flex-col">
-                    <h1 className="text-sm sm:text-xl font-bold text-primary-600 leading-tight">Farm Intelligence</h1>
-                    <p className="text-xs text-gray-500 leading-tight hidden sm:block">Harvest Hub</p>
-                  </div>
+                <NavLink to="/" className="flex items-center space-x-2" aria-label="HarvestPilot home">
+                  <img src={logoIcon} alt="HarvestPilot logo" className="nav-logo" loading="lazy" decoding="async" />
+                  <span className="sr-only">HarvestPilot</span>
                 </NavLink>
               </div>
               {currentUser && (
