@@ -103,13 +103,11 @@ export default function DeviceSharing({
           <button
             onClick={toggleAccessMode}
             disabled={loading}
-            className="px-4 py-2 rounded-lg font-medium transition-colors"
-            style={{
-              backgroundColor: accessControl?.mode === 'open' ? '#dc2626' : '#16a34a',
-              color: 'white',
-              opacity: loading ? 0.7 : 1,
-              cursor: loading ? 'not-allowed' : 'pointer',
-            }}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors text-white ${
+              accessControl?.mode === 'open' 
+                ? 'bg-red-600 hover:bg-red-700 disabled:bg-red-600 disabled:opacity-70' 
+                : 'bg-primary-600 hover:bg-primary-700 disabled:bg-primary-600 disabled:opacity-70'
+            }`}
           >
             {loading ? 'Updating...' : `Switch to ${accessControl?.mode === 'open' ? 'Locked' : 'Open'}`}
           </button>

@@ -59,7 +59,7 @@ function SimpleChart({ data, title }: { data: { time: string; temperature: numbe
         </div>
         
         {/* Chart area */}
-        <svg className="w-full h-full ml-10 mr-10" style={{ width: 'calc(100% - 80px)' }} viewBox={`0 0 ${data.length * 20} 100`} preserveAspectRatio="none">
+        <svg className="w-[calc(100%-80px)] h-full mx-10" viewBox={`0 0 ${data.length * 20} 100`} preserveAspectRatio="none">
           {/* Temperature line */}
           <polyline
             fill="none"
@@ -93,7 +93,7 @@ function SimpleChart({ data, title }: { data: { time: string; temperature: numbe
           <span className="w-3 h-0.5 bg-orange-500"></span> Temperature
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-0.5 bg-blue-500" style={{ borderTop: '2px dashed' }}></span> Humidity
+          <span className="w-3 h-0.5 border-t-2 border-dashed border-blue-500"></span> Humidity
         </span>
       </div>
     </div>

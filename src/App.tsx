@@ -19,7 +19,7 @@ import AcceptInvite from './pages/AcceptInvite'
 import PrivateRoute from './components/PrivateRoute'
 import { useAuth } from './contexts/AuthContext'
 import { usePermissions } from './hooks/usePermissions'
-import logoIcon from './assets/favico.png'
+import logoIcon from './assets/logo.png'
 
 function App() {
   const { currentUser, logout, currentOrganization, allOrganizations, switchOrganization } = useAuth()
@@ -79,7 +79,7 @@ function App() {
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
                 <NavLink to="/" className="flex items-center space-x-2" aria-label="HarvestPilot home">
-                  <img src={logoIcon} alt="HarvestPilot logo" className="nav-logo" loading="lazy" decoding="async" />
+                  <img src={logoIcon} alt="HarvestPilot logo" className="h-16 w-auto" loading="lazy" decoding="async" />
                   <span className="sr-only">HarvestPilot</span>
                 </NavLink>
               </div>

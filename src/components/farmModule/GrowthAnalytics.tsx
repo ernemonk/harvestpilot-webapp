@@ -258,7 +258,7 @@ function LineChart({ data, metric }: { data: Reading[]; metric: ChartMetric; tim
 
   return (
     <div className="overflow-x-auto">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ minWidth: '600px' }}>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[600px]">
         {/* Grid lines */}
         {[0, 1, 2, 3, 4].map(i => {
           const y = padding.top + (i * chartHeight) / 4;
@@ -376,7 +376,7 @@ function EventsChart({ readings, timeRange }: { readings: Reading[]; timeRange: 
 
   return (
     <div className="overflow-x-auto">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ minWidth: '600px' }}>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[600px]">
         {/* Bars */}
         {days.map((day, i) => {
           const count = eventsByDay[day];

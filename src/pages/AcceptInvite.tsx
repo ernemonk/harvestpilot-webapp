@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { organizationService } from '../services/organizationService';
+import AuthLayout from '../components/auth/AuthLayout';
 
 export default function AcceptInvite() {
   const [searchParams] = useSearchParams();
@@ -58,14 +59,8 @@ export default function AcceptInvite() {
   }, [token, currentUser]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-primary-600">🌱 Farm Intelligence</h1>
-          <h2 className="mt-6 text-2xl font-bold text-gray-900">Team Invitation</h2>
-        </div>
-
-        <div className="mt-8 bg-white py-8 px-6 shadow rounded-lg">
+    <AuthLayout title="Team Invitation" subtitle="Accept your invitation to join">
+      <>
           {status === 'loading' && (
             <div className="text-center">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
@@ -131,8 +126,7 @@ export default function AcceptInvite() {
               </div>
             </div>
           )}
-        </div>
-      </div>
-    </div>
+        </>
+    </AuthLayout>
   );
 }
