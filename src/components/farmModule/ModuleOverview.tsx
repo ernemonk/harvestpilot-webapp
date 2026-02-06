@@ -53,7 +53,7 @@ export default function ModuleOverview({ module }: ModuleOverviewProps) {
           icon="🟢"
           title="System Status"
           value={module.status === 'online' ? 'Online' : 'Offline'}
-          subtitle={`Last check-in: ${formatLastSeen(module.lastHeartbeat)}`}
+          subtitle={`Last check-in: ${getExactTimestamp(module.lastHeartbeat)}`}
           status={module.status}
         />
 
@@ -398,6 +398,39 @@ function CropInfoCard({ cropConfig }: any) {
 // ============================================
 // UTILITIES
 // ============================================
+
+function getExactTimestamp(timestamp: any): string {
+  if (!timestamp) return 'Never';
+  
+  try {
+    const date = new Date(timestamp.seconds ? timestamp.seconds * 1000 : timestamp);
+    const now = new Date();
+    
+    // Show exact time with relative info
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    
+    // Calculate how long ago
+    const diff = now.getTime() - date.getTime();
+    const secs = Math.floor(diff / 1000);
+    const mins = Math.floor(secs / 60);
+    const hrs = Math.floor(mins / 60);
+    const days = Math.floor(hrs / 24);
+    
+    let relativeTime = '';
+    if (secs < 60) relativeTime = `${secs}s ago`;
+    else if (mins < 60) relativeTime = `${mins}m ago`;
+    else if (hrs < 24) relativeTime = `${hrs}h ago`;
+    else relativeTime = `${days}d ago`;
+    
+    return `${hours}:${minutes}:${seconds} (${relativeTime})`;
+  } catch {
+    return 'Invalid timestamp';
+  }
+}
 
 function formatLastSeen(timestamp: any): string {
   if (!timestamp) return 'Never';
