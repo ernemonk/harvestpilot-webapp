@@ -345,14 +345,30 @@ function CropInfoCard({ cropConfig }: any) {
 
 function formatLastSeen(timestamp: any): string {
   if (!timestamp) return 'Never';
-  const seconds = timestamp.seconds || timestamp;
-  const now = Date.now() / 1000;
-  const diff = now - seconds;
   
-  if (diff < 60) return 'Just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+  // Handle both Firestore Timestamp objects and milliseconds
+  let timestampMs: number;
+  if (timestamp.toMillis) {
+    // Firestore Timestamp object
+    timestampMs = timestamp.toMillis();
+  } else if (timestamp.seconds) {
+    // Firestore Timestamp with seconds property
+    timestampMs = timestamp.seconds * 1000;
+  } else if (typeof timestamp === 'number') {
+    // Assume milliseconds if > 10^10, otherwise seconds
+    timestampMs = timestamp > 10000000000 ? timestamp : timestamp * 1000;
+  } else {
+    return 'Never';
+  }
+  
+  const now = Date.now();
+  const diff = now - timestampMs;
+  const diffSeconds = Math.floor(diff / 1000);
+  
+  if (diffSeconds < 60) return 'Just now';
+  if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
+  if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}h ago`;
+  return `${Math.floor(diffSeconds / 86400)}d ago`;
 }
 
 function formatTimeAgo(timestamp: number): string {

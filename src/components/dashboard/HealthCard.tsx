@@ -54,7 +54,10 @@ export function HealthCard({
     if (ageMin < 60) return `${ageMin}m ago`;
     
     const ageHours = Math.floor(ageMin / 60);
-    return `${ageHours}h ago`;
+    if (ageHours < 24) return `${ageHours}h ago`;
+    
+    const ageDays = Math.floor(ageHours / 24);
+    return `${ageDays}d ago`;
   };
 
   return (
