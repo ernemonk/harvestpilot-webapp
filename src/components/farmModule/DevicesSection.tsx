@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { doc, onSnapshot, updateDoc, deleteField, Timestamp, addDoc, collection, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, deleteField, Timestamp, addDoc, collection } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import type { DeviceType, SensorType, ActuatorType, ModuleDevice } from '../../types/farmModule';
 
@@ -536,7 +536,7 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
   const isOn = device?.state === true;
 
   // Load schedules from Firestore when drawer opens
-  // Path: devices/{hardwareSerial}/gpioState/{pin}/schedules/{scheduleId}
+  // Path: devices/{hardwareSerial}/gpioState.{pin}.schedules (as a map field)
   useEffect(() => {
     if (!device?.hardwareSerial || device?.pin === undefined || !isACtuator) {
       setLoadingSchedules(false);
@@ -544,25 +544,29 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
     }
 
     setLoadingSchedules(true);
-    const schedulesRef = collection(db, 'devices', device.hardwareSerial, 'gpioState', device.pin.toString(), 'schedules');
-    const unsubscribe = onSnapshot(schedulesRef, (snapshot) => {
-      const loadedSchedules = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          name: data.name,
-          durationSeconds: data.durationSeconds,
-          frequencySeconds: data.frequencySeconds,
-          durationDisplay: `${data.durationSeconds} seconds`,
-          frequencyDisplay: `${data.frequencySeconds} seconds`,
-          startTime: data.startTime,
-          endTime: data.endTime,
-          enabled: data.enabled,
-          createdAt: data.createdAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
-        };
-      });
-      console.log('📅 Loaded schedules from Firestore at gpioState/' + device.pin + '/schedules:', loadedSchedules);
-      setSchedules(loadedSchedules);
+    const deviceRef = doc(db, 'devices', device.hardwareSerial);
+    const unsubscribe = onSnapshot(deviceRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        const pinSchedules = data?.gpioState?.[device.pin]?.schedules || {};
+        
+        const loadedSchedules = Object.entries(pinSchedules).map(([scheduleId, scheduleData]: any) => {
+          return {
+            id: scheduleId,
+            name: scheduleData.name,
+            durationSeconds: scheduleData.durationSeconds,
+            frequencySeconds: scheduleData.frequencySeconds,
+            durationDisplay: `${scheduleData.durationSeconds} seconds`,
+            frequencyDisplay: `${scheduleData.frequencySeconds} seconds`,
+            startTime: scheduleData.startTime,
+            endTime: scheduleData.endTime,
+            enabled: scheduleData.enabled,
+            createdAt: scheduleData.createdAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
+          };
+        });
+        console.log('📅 Loaded schedules from gpioState.' + device.pin + '.schedules:', loadedSchedules);
+        setSchedules(loadedSchedules);
+      }
       setLoadingSchedules(false);
     }, (err) => {
       console.error('❌ Failed to load schedules:', err);
@@ -896,21 +900,23 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
 
     setSaving(true);
     try {
-      // Save to Firestore under devices/{hardwareSerial}/gpioState/{pin}/schedules/{scheduleId}
-      const scheduleRef = doc(db, 'devices', device.hardwareSerial, 'gpioState', device.pin.toString(), 'schedules', schedule.id);
-      await setDoc(scheduleRef, {
-        name: schedule.name,
-        durationSeconds: schedule.durationSeconds,
-        frequencySeconds: schedule.frequencySeconds,
-        startTime: schedule.startTime,
-        endTime: schedule.endTime,
-        enabled: schedule.enabled,
-        pin: device.pin,
-        createdAt: Timestamp.fromDate(new Date(schedule.createdAt)),
-        updatedAt: Timestamp.now(),
+      // Write path: devices/{hardwareSerial} > gpioState.{pin}.schedules.{scheduleId}
+      const deviceRef = doc(db, 'devices', device.hardwareSerial);
+      await updateDoc(deviceRef, {
+        [`gpioState.${device.pin}.schedules.${schedule.id}`]: {
+          name: schedule.name,
+          durationSeconds: schedule.durationSeconds,
+          frequencySeconds: schedule.frequencySeconds,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          enabled: schedule.enabled,
+          pin: device.pin,
+          createdAt: Timestamp.fromDate(new Date(schedule.createdAt)),
+          updatedAt: Timestamp.now(),
+        }
       });
 
-      console.log('✅ Schedule saved to Firestore at gpioState/' + device.pin + '/schedules:', schedule);
+      console.log('✅ Schedule saved to gpioState.' + device.pin + '.schedules.' + schedule.id, schedule);
       setSchedules([...schedules, schedule]);
       setNewSchedule({
         name: '',
@@ -934,11 +940,13 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
   const handleDeleteSchedule = async (id: string) => {
     setSaving(true);
     try {
-      // Delete from Firestore at devices/{hardwareSerial}/gpioState/{pin}/schedules/{id}
-      const scheduleRef = doc(db, 'devices', device.hardwareSerial, 'gpioState', device.pin.toString(), 'schedules', id);
-      await deleteDoc(scheduleRef);
+      // Delete path: devices/{hardwareSerial} > gpioState.{pin}.schedules.{id}
+      const deviceRef = doc(db, 'devices', device.hardwareSerial);
+      await updateDoc(deviceRef, {
+        [`gpioState.${device.pin}.schedules.${id}`]: deleteField()
+      });
       
-      console.log('✅ Schedule deleted from Firestore at gpioState/' + device.pin + '/schedules:', id);
+      console.log('✅ Schedule deleted from gpioState.' + device.pin + '.schedules.' + id);
       setSchedules(schedules.filter((s: any) => s.id !== id));
     } catch (err) {
       console.error('❌ Failed to delete schedule:', err);
