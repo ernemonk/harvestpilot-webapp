@@ -15,7 +15,7 @@ export default function Alerts() {
   const { currentUser, currentOrganization, loading: authLoading } = useAuth();
   
   // Get deviceId from user profile or localStorage
-  const deviceId = (currentUser as any)?.deviceId || localStorage.getItem('harvestpilot_device_id');
+  const deviceId = (currentUser as any)?.hardwareSerial || localStorage.getItem('harvestpilot_hardware_serial');
   
   const { alerts, activeAlerts, loading, error, acknowledgeAlert } = useAlerts(deviceId);
   const [filter, setFilter] = useState<FilterType>('active');

@@ -265,8 +265,12 @@ export default function DeviceSetup() {
 
       await setDoc(deviceRef, updateData, { merge: true });
 
-      // Store device ID locally for quick access
-      localStorage.setItem('harvestpilot_device_id', deviceId.trim());
+      // Store hardware serial locally for quick access
+      localStorage.setItem('harvestpilot_hardware_serial', deviceId.trim());
+      
+      // Also store in user profile for persistence
+      const userRef = doc(db, 'users', currentUser.uid);
+      await setDoc(userRef, { hardwareSerial: deviceId.trim() }, { merge: true });
       
       // Navigate to device dashboard
       navigate('/device');
@@ -322,7 +326,7 @@ export default function DeviceSetup() {
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Device ID
+                  Hardware Serial
                 </label>
                 <p className="text-sm text-gray-500 mb-3">
                   Find this on your Raspberry Pi display or in the HarvestPilot terminal output
@@ -334,7 +338,7 @@ export default function DeviceSetup() {
                     setDeviceId(e.target.value);
                     setDeviceExists(null);
                   }}
-                  placeholder="e.g., hp-12345678"
+                  placeholder="e.g., 100000002acfd839"
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
                 {deviceExists === true && (

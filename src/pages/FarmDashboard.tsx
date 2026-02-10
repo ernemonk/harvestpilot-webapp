@@ -256,13 +256,20 @@ function DeviceCard({ device, navigate }: { device: DeviceStatus; navigate: any 
     ? Math.max(device.estimatedHarvestDays - device.currentDay, 0)
     : null;
 
+  const handleCardClick = () => {
+    navigate(`/farm-module/${device.deviceId}`);
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 hover:border-primary-500 transition-all hover:shadow-md overflow-hidden">
+    <button
+      onClick={handleCardClick}
+      className="w-full text-left bg-white rounded-lg shadow-sm border-2 border-gray-200 hover:border-primary-500 transition-all duration-200 hover:shadow-lg hover:-translate-y-1 cursor-pointer group"
+    >
       {/* Header */}
       <div className="p-6 pb-4">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1 group-hover:text-primary-600 transition-colors">
               {device.deviceName}
             </h3>
             <div className="flex items-center space-x-2">
@@ -272,19 +279,19 @@ function DeviceCard({ device, navigate }: { device: DeviceStatus; navigate: any 
               </span>
             </div>
           </div>
-          <span className="text-3xl">🌱</span>
+          <span className="text-3xl group-hover:scale-110 transition-transform duration-200">🌱</span>
         </div>
 
         {/* Sensor Readings */}
         {isOnline && (
           <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="bg-orange-50 rounded-lg p-3">
+            <div className="bg-orange-50 rounded-lg p-3 group-hover:bg-orange-100 transition-colors duration-200">
               <div className="text-xs font-medium text-orange-900 mb-1">Temperature</div>
               <div className="text-lg font-bold text-orange-700">
                 {device.temperature ? `${Math.round(device.temperature)}°F` : '--'}
               </div>
             </div>
-            <div className="bg-blue-50 rounded-lg p-3">
+            <div className="bg-blue-50 rounded-lg p-3 group-hover:bg-blue-100 transition-colors duration-200">
               <div className="text-xs font-medium text-blue-900 mb-1">Humidity</div>
               <div className="text-lg font-bold text-blue-700">
                 {device.humidity ? `${Math.round(device.humidity)}%` : '--'}
@@ -297,7 +304,7 @@ function DeviceCard({ device, navigate }: { device: DeviceStatus; navigate: any 
         {device.cropType && (
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">{device.cropType}</span>
+              <span className="text-sm font-medium text-gray-700 group-hover:text-primary-600 transition-colors">{device.cropType}</span>
               <span className="text-xs text-gray-500">
                 Day {device.currentDay || 0} of {device.estimatedHarvestDays}
               </span>
@@ -305,7 +312,7 @@ function DeviceCard({ device, navigate }: { device: DeviceStatus; navigate: any 
             {/* Progress Bar */}
             <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
               <div
-                className="bg-primary-600 h-2 rounded-full transition-all duration-500"
+                className="bg-primary-600 h-2 rounded-full transition-all duration-500 group-hover:bg-primary-700"
                 style={{ width: `${harvestProgress}%` }}
               />
             </div>
@@ -318,16 +325,16 @@ function DeviceCard({ device, navigate }: { device: DeviceStatus; navigate: any 
         )}
       </div>
 
-      {/* Actions */}
-      <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
-        <button
-          onClick={() => navigate(`/farm-module/${device.deviceId}`)}
-          className="w-full px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-medium hover:bg-primary-700 transition-colors"
-        >
-          View Details
-        </button>
+      {/* Actions - Now integrated into card */}
+      <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 group-hover:bg-primary-50 transition-colors duration-200">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 transition-colors">
+            View Details
+          </span>
+          <span className="text-primary-600 group-hover:translate-x-1 transition-transform duration-200">→</span>
+        </div>
       </div>
-    </div>
+    </button>
   );
 }
 

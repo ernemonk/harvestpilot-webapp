@@ -137,7 +137,7 @@ export default function FarmModule() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'overview' && <ModuleOverview module={module} />}
-        {activeTab === 'devices' && <DevicesSection moduleId={module.id} />}
+        {activeTab === 'devices' && <DevicesSection moduleId={module.id} hardwareSerial={module.id} />}
         {activeTab === 'automations' && <AutomationsSection moduleId={module.id} />}
         {activeTab === 'analytics' && <GrowthAnalytics moduleId={module.id} />}
         {activeTab === 'harvest' && <HarvestCycleSection moduleId={module.id} />}

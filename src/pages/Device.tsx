@@ -299,7 +299,7 @@ export default function Device() {
   const { currentUser, currentOrganization, loading: authLoading } = useAuth();
   
   // Get deviceId from user profile (set during device registration)
-  const deviceId = (currentUser as any)?.deviceId || localStorage.getItem('harvestpilot_device_id');
+  const deviceId = (currentUser as any)?.hardwareSerial || localStorage.getItem('harvestpilot_hardware_serial');
   
   const { state, loading: stateLoading, error: stateError } = useDeviceState(deviceId);
   const { data: history, loading: historyLoading } = useHourlyHistory(deviceId, 24);

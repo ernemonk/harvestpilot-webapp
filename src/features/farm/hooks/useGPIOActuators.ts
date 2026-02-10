@@ -2,6 +2,7 @@
  * useGPIOActuator - Real-time GPIO actuator control with Firestore sync
  * 
  * Manages GPIO pin states, subscribes to Firestore updates, and sends toggles
+ * Syncs state to devices.gpioState collection
  */
 
 import { useState, useEffect } from 'react';
@@ -78,11 +79,16 @@ export function useGPIOActuators(deviceId: string | undefined): UseGPIOActuators
 
     try {
       const deviceRef = doc(db, 'devices', deviceId);
-      const updatePayload: any = {};
-      updatePayload[`gpioState.${bcmPin}.state`] = newState;
-      updatePayload[`gpioState.${bcmPin}.lastUpdated`] = Date.now();
       
-      await updateDoc(deviceRef, updatePayload);
+      // Write complete gpioState entry to ensure proper initialization
+      await updateDoc(deviceRef, {
+        [`gpioState.${bcmPin}`]: {
+          state: newState,
+          lastUpdated: Date.now(),
+          bcmPin: bcmPin,
+          mode: 'output',
+        }
+      });
       
       // Optimistically update local state
       setActuators(prev =>
