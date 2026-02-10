@@ -202,19 +202,28 @@ function DeviceGroup({ title, icon, devices, onDeviceClick, moduleId, hardwareSe
 
 function DeviceRow({ device, onClick, moduleId, hardwareSerial }: { device: any; onClick: () => void; moduleId?: string; hardwareSerial?: string }) {
   const [toggling, setToggling] = useState(false);
+  const [optimisticState, setOptimisticState] = useState<boolean | null>(null);
   // Show ACTUAL hardware state when available, so the toggle reflects physical reality
   const hasMismatch = device.mismatch === true;
-  const isOn = device.hardwareState !== undefined ? device.hardwareState === true : device.state === true;
+  const confirmedState = device.hardwareState !== undefined ? device.hardwareState === true : device.state === true;
+  // Use optimistic state for instant feedback, fall back to confirmed Firestore state
+  const isOn = optimisticState !== null ? optimisticState : confirmedState;
+  
+  // Clear optimistic state once Firestore confirms the change
+  useEffect(() => {
+    if (optimisticState !== null && confirmedState === optimisticState) {
+      setOptimisticState(null);
+    }
+  }, [confirmedState, optimisticState]);
 
   const handleToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (device.type !== 'actuator' || !hardwareSerial) return;
     
+    const newState = !isOn;
+    setOptimisticState(newState); // Instant visual feedback
     setToggling(true);
     try {
-      const newState = !isOn;
-      // Send pin_control command instead of directly updating gpioState
-      // This ensures the backend Firebase listener will process the command
       await addDoc(collection(db, `devices/${hardwareSerial}/commands`), {
         id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
         type: 'pin_control',
@@ -223,10 +232,9 @@ function DeviceRow({ device, onClick, moduleId, hardwareSerial }: { device: any;
         issuedAt: Date.now(),
         status: 'pending',
       });
-      // Don't set isOn here - let the Firestore listener update the state
-      // This prevents optimistic updates from causing state oscillation
     } catch (err) {
       console.error('Toggle failed:', err);
+      setOptimisticState(null); // Revert on failure
     } finally {
       setToggling(false);
     }
@@ -552,12 +560,21 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
   const [loadingSchedules, setLoadingSchedules] = useState(true);
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [optimisticState, setOptimisticState] = useState<boolean | null>(null);
 
   const isACtuator = device?.type === 'actuator';
   const isSensor = device?.type === 'sensor';
   // Show ACTUAL hardware state so the toggle reflects physical reality
   const hasMismatch = device?.mismatch === true;
-  const isOn = device?.hardwareState !== undefined ? device?.hardwareState === true : device?.state === true;
+  const confirmedState = device?.hardwareState !== undefined ? device?.hardwareState === true : device?.state === true;
+  const isOn = optimisticState !== null ? optimisticState : confirmedState;
+  
+  // Clear optimistic state once Firestore confirms
+  useEffect(() => {
+    if (optimisticState !== null && confirmedState === optimisticState) {
+      setOptimisticState(null);
+    }
+  }, [confirmedState, optimisticState]);
 
   // Load schedules from Firestore when drawer opens
   // Path: devices/{hardwareSerial}/gpioState.{pin}.schedules (as a map field)
@@ -619,11 +636,10 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
 
   const handleToggleState = async () => {
     if (!isACtuator || !device?.hardwareSerial || device?.pin === undefined) return;
+    const newState = !isOn;
+    setOptimisticState(newState); // Instant visual feedback
     setToggling(true);
     try {
-      const newState = !isOn;
-      // Send command to hardware - don't write state directly to Firestore
-      // Hardware scripts read commands and update gpioState (source of truth)
       await addDoc(collection(db, `devices/${device.hardwareSerial}/commands`), {
         id: crypto.randomUUID?.() || Date.now().toString(),
         type: 'pin_control',
@@ -635,6 +651,7 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
       console.log('✅ Pin control command sent for GPIO', device.pin, '→', newState ? 'ON' : 'OFF');
     } catch (err) {
       console.error('Toggle failed:', err);
+      setOptimisticState(null); // Revert on failure
     } finally {
       setToggling(false);
     }

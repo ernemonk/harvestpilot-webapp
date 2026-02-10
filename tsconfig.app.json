@@ -19,10 +19,6 @@
     /* Path Aliases */
     "baseUrl": ".",
     "paths": {
-      "@/app/*": ["src/app/*"],
-      "@/features/*": ["src/features/*"],
-      "@/shared/*": ["src/shared/*"],
-      "@/core/*": ["src/core/*"],
       "@/assets/*": ["src/assets/*"]
     },
 
