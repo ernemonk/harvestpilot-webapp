@@ -550,7 +550,7 @@ function getStageChecklist(stage: HarvestStage): { label: string; completed: boo
 
   return (checklists[stage] || []).map(label => ({
     label,
-    completed: Math.random() > 0.5, // TODO: Persist completion status
+    completed: false, // TODO: Persist completion status
   }));
 }
 

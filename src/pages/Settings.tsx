@@ -3,6 +3,7 @@
  */
 
 import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { useDeviceState } from '../hooks/useDeviceState';
 import type { CropConfig } from '../hooks/useDeviceState';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -19,8 +20,8 @@ const CROP_TYPES = [
 ];
 
 export default function Settings() {
-  // For now, use a placeholder deviceId - in production this would come from user profile
-  const deviceId = 'demo-device';
+  const { currentUser } = useAuth();
+  const deviceId = (currentUser as any)?.hardwareSerial || localStorage.getItem('harvestpilot_hardware_serial') || '';
   
   const { state, loading, error } = useDeviceState(deviceId);
   const [saving, setSaving] = useState(false);

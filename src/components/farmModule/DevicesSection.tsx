@@ -21,6 +21,16 @@ export default function DevicesSection({ moduleId, hardwareSerial }: DevicesSect
   const [showAddDevice, setShowAddDevice] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<any | null>(null);
 
+  // Keep selectedDevice in sync with live Firestore data
+  useEffect(() => {
+    if (selectedDevice) {
+      const updated = devices.find(d => d.id === selectedDevice.id);
+      if (updated && JSON.stringify(updated) !== JSON.stringify(selectedDevice)) {
+        setSelectedDevice(updated);
+      }
+    }
+  }, [devices]);
+
   // Subscribe to gpioState from device document using hardware serial (with moduleId fallback)
   useEffect(() => {
     const deviceKey = hardwareSerial || moduleId;
@@ -36,21 +46,30 @@ export default function DevicesSection({ moduleId, hardwareSerial }: DevicesSect
         const gpioState = data.gpioState || {};
         // Convert gpioState map to array, with pin number as id
         const deviceList = Object.entries(gpioState).map(([pin, pinData]: any) => {
-          // Infer device type from GPIO pin name
+          // Use device_type from Firestore (set by Pi), fallback to name-based inference
           const name = pinData.name || '';
-          let type = 'actuator'; // default
-          if (name.includes('Sensor')) {
+          let type = pinData.device_type || 'actuator';
+          // Normalize Pi device_type to UI categories
+          if (['sensor'].includes(type)) {
+            type = 'sensor';
+          } else if (['camera'].includes(type)) {
+            type = 'camera';
+          } else if (['motor', 'pump', 'light', 'actuator'].includes(type)) {
+            type = 'actuator';
+          } else if (name.includes('Sensor')) {
             type = 'sensor';
           } else if (name.includes('Camera')) {
             type = 'camera';
+          } else {
+            type = 'actuator';
           }
           
           return {
             id: `${deviceKey}-${pin}`,
             pin: parseInt(pin),
             hardwareSerial: deviceKey,
-            type,
             ...pinData,
+            type, // Override Firestore's device_type with normalized type
           };
         });
         setDevices(deviceList);
@@ -183,11 +202,9 @@ function DeviceGroup({ title, icon, devices, onDeviceClick, moduleId, hardwareSe
 
 function DeviceRow({ device, onClick, moduleId, hardwareSerial }: { device: any; onClick: () => void; moduleId?: string; hardwareSerial?: string }) {
   const [toggling, setToggling] = useState(false);
-  const [isOn, setIsOn] = useState(device.state === true);
-
-  useEffect(() => {
-    setIsOn(device.state === true);
-  }, [device.state]);
+  // Show ACTUAL hardware state when available, so the toggle reflects physical reality
+  const hasMismatch = device.mismatch === true;
+  const isOn = device.hardwareState !== undefined ? device.hardwareState === true : device.state === true;
 
   const handleToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -272,6 +289,11 @@ function DeviceRow({ device, onClick, moduleId, hardwareSerial }: { device: any;
         {/* Toggle Switch for Actuators */}
         {device.type === 'actuator' && (
           <div className="flex items-center space-x-3 ml-4">
+            {hasMismatch && (
+              <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full" title="Hardware state doesn't match desired state">
+                ⚠ Mismatch
+              </span>
+            )}
             <span className={`text-sm font-medium ${isOn ? 'text-green-600' : 'text-gray-500'}`}>
               {isOn ? 'ON' : 'OFF'}
             </span>
@@ -533,7 +555,9 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
 
   const isACtuator = device?.type === 'actuator';
   const isSensor = device?.type === 'sensor';
-  const isOn = device?.state === true;
+  // Show ACTUAL hardware state so the toggle reflects physical reality
+  const hasMismatch = device?.mismatch === true;
+  const isOn = device?.hardwareState !== undefined ? device?.hardwareState === true : device?.state === true;
 
   // Load schedules from Firestore when drawer opens
   // Path: devices/{hardwareSerial}/gpioState.{pin}.schedules (as a map field)
@@ -597,15 +621,18 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
     if (!isACtuator || !device?.hardwareSerial || device?.pin === undefined) return;
     setToggling(true);
     try {
-      const deviceRef = doc(db, 'devices', device.hardwareSerial);
-      await updateDoc(deviceRef, {
-        [`gpioState.${device.pin}`]: {
-          ...device,
-          state: !isOn,
-          lastUpdated: Timestamp.now(),
-        }
+      const newState = !isOn;
+      // Send command to hardware - don't write state directly to Firestore
+      // Hardware scripts read commands and update gpioState (source of truth)
+      await addDoc(collection(db, `devices/${device.hardwareSerial}/commands`), {
+        id: crypto.randomUUID?.() || Date.now().toString(),
+        type: 'pin_control',
+        pin: device.pin,
+        action: newState ? 'on' : 'off',
+        issuedAt: Timestamp.now(),
+        status: 'pending',
       });
-      onUpdate({ ...device, state: !isOn });
+      console.log('✅ Pin control command sent for GPIO', device.pin, '→', newState ? 'ON' : 'OFF');
     } catch (err) {
       console.error('Toggle failed:', err);
     } finally {
@@ -621,13 +648,15 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
     setSaving(true);
     try {
       const deviceRef = doc(db, 'devices', device.hardwareSerial);
+      // Only update user-defined config (name, type, enabled)
+      // Don't update lastUpdated - hardware scripts manage that
       await updateDoc(deviceRef, {
-        [`gpioState.${device.pin}`]: {
-          ...formData,
-          lastUpdated: Timestamp.now(),
-        }
+        [`gpioState.${device.pin}.name`]: formData.name,
+        [`gpioState.${device.pin}.type`]: formData.type,
+        [`gpioState.${device.pin}.enabled`]: formData.enabled ?? true,
       });
-      onUpdate(formData);
+      console.log('✅ Device config saved for GPIO', device.pin);
+      onUpdate({ ...device, ...formData });
       setEditing(false);
     } catch (err) {
       console.error('Failed to update device:', err);
@@ -714,6 +743,9 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
             {isACtuator && (
               <p className="text-xs text-gray-500 mt-3">
                 {isOn ? '🟢 Device is ON' : '⚪ Device is OFF'}
+                {hasMismatch && (
+                  <span className="ml-2 text-yellow-600 font-medium">⚠ Hardware mismatch — desired: {device?.state ? 'ON' : 'OFF'}, actual: {device?.hardwareState ? 'ON' : 'OFF'}</span>
+                )}
               </p>
             )}
           </div>
@@ -912,7 +944,6 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
           enabled: schedule.enabled,
           pin: device.pin,
           createdAt: Timestamp.fromDate(new Date(schedule.createdAt)),
-          updatedAt: Timestamp.now(),
         }
       });
 
@@ -951,6 +982,21 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
     } catch (err) {
       console.error('❌ Failed to delete schedule:', err);
       alert('Failed to delete schedule');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleSchedule = async (id: string, currentEnabled: boolean) => {
+    setSaving(true);
+    try {
+      const deviceRef = doc(db, 'devices', device.hardwareSerial);
+      await updateDoc(deviceRef, {
+        [`gpioState.${device.pin}.schedules.${id}.enabled`]: !currentEnabled,
+      });
+      setSchedules(schedules.map((s: any) => s.id === id ? { ...s, enabled: !currentEnabled } : s));
+    } catch (err) {
+      console.error('❌ Failed to toggle schedule:', err);
     } finally {
       setSaving(false);
     }
@@ -1108,13 +1154,22 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
                   </p>
                 )}
               </div>
-              <button
-                onClick={() => handleDeleteSchedule(schedule.id)}
-                disabled={saving}
-                className="text-red-600 hover:text-red-700 transition-colors font-bold text-lg ml-2 flex-shrink-0 disabled:opacity-50"
-              >
-                ×
-              </button>
+              <div className="flex items-center space-x-1 ml-2 flex-shrink-0">
+                <button
+                  onClick={() => handleToggleSchedule(schedule.id, schedule.enabled)}
+                  disabled={saving}
+                  className={`text-xs px-2 py-1 rounded-full transition-colors font-medium disabled:opacity-50 ${schedule.enabled ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  {schedule.enabled ? 'Disable' : 'Enable'}
+                </button>
+                <button
+                  onClick={() => handleDeleteSchedule(schedule.id)}
+                  disabled={saving}
+                  className="text-red-600 hover:text-red-700 transition-colors font-bold text-lg disabled:opacity-50"
+                >
+                  ×
+                </button>
+              </div>
             </div>
           ))}
         </div>

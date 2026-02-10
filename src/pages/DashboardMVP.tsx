@@ -15,9 +15,9 @@ import { ControlPanel } from '../components/dashboard/ControlPanel';
 import { AlertBanner } from '../components/alerts/AlertBanner';
 
 export default function DashboardMVP() {
-  // For MVP, get deviceId from user profile or use a default
+  // Get deviceId from user profile hardware serial
   const { currentUser } = useAuth();
-  const deviceId = (currentUser as any)?.deviceId || 'demo-device';
+  const deviceId = (currentUser as any)?.hardwareSerial || localStorage.getItem('harvestpilot_hardware_serial') || '';
   
   const { state, loading: stateLoading, error: stateError } = useDeviceState(deviceId);
   const { data: history, loading: historyLoading } = useHourlyHistory(deviceId, 24);

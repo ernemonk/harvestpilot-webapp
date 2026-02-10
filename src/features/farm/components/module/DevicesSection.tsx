@@ -23,6 +23,16 @@ export default function DevicesSection({ moduleId }: DevicesSectionProps) {
   const [selectedDevice, setSelectedDevice] = useState<any | null>(null);
   const [deviceId, setDeviceId] = useState<string>('');
 
+  // Keep selectedDevice in sync with live Firestore data
+  useEffect(() => {
+    if (selectedDevice) {
+      const updated = devices.find(d => d.id === selectedDevice.id);
+      if (updated && JSON.stringify(updated) !== JSON.stringify(selectedDevice)) {
+        setSelectedDevice(updated);
+      }
+    }
+  }, [devices]);
+
   // Fetch hardwareSerial from user profile, with moduleId as fallback
   useEffect(() => {
     let serial = localStorage.getItem('harvestpilot_hardware_serial') || '';
@@ -224,8 +234,9 @@ function DeviceRow({ device, onClick, moduleId }: { device: any; onClick: () => 
     (currentUser as any)?.hardwareSerial || localStorage.getItem('harvestpilot_hardware_serial') || ''
   );
 
-  // Use device state directly from props
-  const isOn = device.state ?? false;
+  // Show ACTUAL hardware state when available, so the toggle reflects physical reality
+  const hasMismatch = device.mismatch === true;
+  const isOn = device.hardwareState !== undefined ? device.hardwareState === true : (device.state ?? false);
 
   const handleToggle = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent opening the drawer
@@ -556,19 +567,14 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
     setSaving(true);
     try {
       const deviceRef = doc(db, 'devices', device.deviceId);
+      // Use dot-notation to update only editable fields, preserving Pi-managed fields
       await updateDoc(deviceRef, {
-        [`gpioState.${device.pin}`]: {
-          name: formData.name,
-          type: formData.type,
-          subtype: formData.subtype,
-          gpioPin: device.pin,
-          enabled: formData.enabled,
-          state: formData.state !== undefined ? formData.state : device.state,
-          lastUpdated: Timestamp.now(),
-          mode: device.mode || (formData.type === 'actuator' ? 'output' : 'input'),
-        }
+        [`gpioState.${device.pin}.name`]: formData.name,
+        [`gpioState.${device.pin}.type`]: formData.type,
+        [`gpioState.${device.pin}.enabled`]: formData.enabled ?? true,
+        [`gpioState.${device.pin}.lastUpdated`]: Timestamp.now(),
       });
-      onUpdate(formData);
+      onUpdate({ ...device, ...formData });
       setEditing(false);
     } catch (err) {
       console.error('Failed to update device:', err);
