@@ -1075,7 +1075,7 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
 
           {/* Frequency */}
           <div>
-            <label className="text-xs font-medium text-gray-700 block mb-2">Repeat Interval</label>
+            <label className="text-xs font-medium text-gray-700 block mb-2">Pause Between Runs</label>
             <div className="flex gap-2 items-center">
               <input
                 type="number"
@@ -1097,7 +1097,7 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
                 <option value="days">days</option>
               </select>
             </div>
-            <p className="text-xs text-gray-500 mt-1">Schedule will repeat every {newSchedule.frequencyValue} {newSchedule.frequencyUnit}</p>
+            <p className="text-xs text-gray-500 mt-1">Pause for {newSchedule.frequencyValue} {newSchedule.frequencyUnit} between each run</p>
           </div>
 
           {/* Optional Time Window */}
@@ -1163,7 +1163,7 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
                   </span>
                 </div>
                 <p className="text-gray-600 mt-1">
-                  Run for <span className="font-medium">{schedule.durationDisplay}</span> every <span className="font-medium">{schedule.frequencyDisplay}</span>
+                  Run for <span className="font-medium">{schedule.durationDisplay}</span>, pause <span className="font-medium">{schedule.frequencyDisplay}</span>
                 </p>
                 {(schedule.startTime || schedule.endTime) && (
                   <p className="text-gray-500 text-xs mt-1">
