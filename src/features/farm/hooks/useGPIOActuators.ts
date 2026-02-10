@@ -80,14 +80,11 @@ export function useGPIOActuators(deviceId: string | undefined): UseGPIOActuators
     try {
       const deviceRef = doc(db, 'devices', deviceId);
       
-      // Write complete gpioState entry to ensure proper initialization
+      // Use dot-notation to update ONLY the state field,
+      // preserving all other pin metadata (name, device_type, enabled, etc.)
       await updateDoc(deviceRef, {
-        [`gpioState.${bcmPin}`]: {
-          state: newState,
-          lastUpdated: Date.now(),
-          bcmPin: bcmPin,
-          mode: 'output',
-        }
+        [`gpioState.${bcmPin}.state`]: newState,
+        [`gpioState.${bcmPin}.lastUpdated`]: Date.now(),
       });
       
       // Optimistically update local state

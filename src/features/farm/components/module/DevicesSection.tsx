@@ -66,21 +66,33 @@ export default function DevicesSection({ moduleId }: DevicesSectionProps) {
         const gpioState = data.gpioState || {};
         // Convert gpioState map to array
         const deviceList = Object.entries(gpioState).map(([pin, pinData]: any) => {
-          // Infer device type from GPIO pin name
+          // Use device_type from Firestore (set by Pi), fallback to name-based inference
           const name = pinData.name || '';
-          let type = 'actuator'; // default
-          if (name.includes('Sensor')) {
+          let type = pinData.device_type || pinData.type || 'actuator';
+          // Normalize device_type to UI type categories
+          if (['sensor'].includes(type)) {
+            type = 'sensor';
+          } else if (['camera'].includes(type)) {
+            type = 'camera';
+          } else if (['motor', 'pump', 'light', 'actuator'].includes(type)) {
+            type = 'actuator';
+          } else if (name.includes('Sensor')) {
             type = 'sensor';
           } else if (name.includes('Camera')) {
             type = 'camera';
+          } else {
+            type = 'actuator';
           }
           
           return {
             id: `${deviceId}-${pin}`,
             pin: parseInt(pin),
             deviceId,
+            hardwareSerial: deviceId,
             type,
             ...pinData,
+            // Re-apply computed type so pinData.type doesn't overwrite
+            type,
           };
         });
         setDevices(deviceList);
