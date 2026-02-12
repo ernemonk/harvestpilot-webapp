@@ -546,12 +546,6 @@ function AddDeviceModal({ moduleId, hardwareSerial, onClose }: { moduleId: strin
 function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
   console.log('🎯 DeviceDetailsDrawer mounted with device:', device);
   
-  // Safety check - if no device, don't render
-  if (!device) {
-    console.warn('⚠️ DeviceDetailsDrawer called without device');
-    return null;
-  }
-
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState(device || {});
   const [saving, setSaving] = useState(false);
@@ -701,6 +695,12 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
       setDeleting(false);
     }
   };
+
+  // Safety check - if no device, don't render (must be after all hooks)
+  if (!device) {
+    console.warn('⚠️ DeviceDetailsDrawer called without device');
+    return null;
+  }
 
   return (
     <div className="fixed inset-y-0 right-0 w-full md:w-[500px] bg-white shadow-2xl z-50 overflow-y-auto flex flex-col">
