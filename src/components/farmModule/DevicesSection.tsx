@@ -351,72 +351,86 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 }
 
 function AddDeviceModal({ moduleId, hardwareSerial, onClose }: { moduleId: string; hardwareSerial: string; onClose: () => void }) {
-  const [allGpioPins, setAllGpioPins] = useState<any[]>([]);
-  const [selectedPins, setSelectedPins] = useState<Set<number>>(new Set());
+  // All 26 usable BCM GPIO pins on a Raspberry Pi 40-pin header
+  const ALL_BCM_PINS = [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27];
+
+  // Pins reserved for common bus protocols (warn user but allow override)
+  const BUS_PINS: Record<number, string> = {
+    2: 'I²C SDA', 3: 'I²C SCL',
+    7: 'SPI CE1', 8: 'SPI CE0', 9: 'SPI MISO', 10: 'SPI MOSI', 11: 'SPI SCLK',
+    14: 'UART TX', 15: 'UART RX',
+  };
+
+  const [usedPins, setUsedPins] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Load all GPIO pins from device
+  // Form state
+  const [selectedPin, setSelectedPin] = useState<number | null>(null);
+  const [deviceName, setDeviceName] = useState('');
+  const [deviceType, setDeviceType] = useState<string>('actuator');
+  const [subtype, setSubtype] = useState<string>('');
+  const [pinMode, setPinMode] = useState<string>('output');
+  const [activeLow, setActiveLow] = useState(false);
+
+  // Subscribe to gpioState to know which pins are already in use
   useEffect(() => {
     const deviceKey = hardwareSerial || moduleId;
-    if (!deviceKey) {
-      setLoading(false);
-      return;
-    }
+    if (!deviceKey) { setLoading(false); return; }
 
     const deviceRef = doc(db, 'devices', deviceKey);
     const unsubscribe = onSnapshot(deviceRef, (snapshot) => {
       if (snapshot.exists()) {
-        const data = snapshot.data();
-        const gpioState = data.gpioState || {};
-        const pinsList = Object.entries(gpioState)
-          .map(([pin, pinData]: any) => ({
-            pin: parseInt(pin),
-            ...pinData,
-          }))
-          .sort((a, b) => a.pin - b.pin);
-        setAllGpioPins(pinsList);
+        const gpioState = snapshot.data().gpioState || {};
+        setUsedPins(new Set(Object.keys(gpioState).map(Number)));
       }
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, [hardwareSerial, moduleId]);
 
-  const handleTogglePin = (pin: number) => {
-    const newSelected = new Set(selectedPins);
-    if (newSelected.has(pin)) {
-      newSelected.delete(pin);
-    } else {
-      newSelected.add(pin);
+  // Auto-generate name when pin or type changes
+  useEffect(() => {
+    if (selectedPin !== null && !deviceName) {
+      const typeLabel = subtype || deviceType || 'device';
+      setDeviceName(`${typeLabel.charAt(0).toUpperCase() + typeLabel.slice(1)} GPIO${selectedPin}`);
     }
-    setSelectedPins(newSelected);
-  };
+  }, [selectedPin, deviceType, subtype]);
 
-  const handleEnableSelected = async () => {
-    if (selectedPins.size === 0) {
-      alert('Please select at least one GPIO pin');
-      return;
-    }
+  const handleAddDevice = async () => {
+    if (selectedPin === null) { alert('Please select a GPIO pin'); return; }
+    if (!deviceName.trim()) { alert('Please enter a device name'); return; }
 
     setSaving(true);
     try {
       const deviceRef = doc(db, 'devices', hardwareSerial || moduleId);
-      const updateFields: Record<string, any> = {};
+      const pinEntry: Record<string, any> = {
+        [`gpioState.${selectedPin}.name`]: deviceName.trim(),
+        [`gpioState.${selectedPin}.device_type`]: deviceType,
+        [`gpioState.${selectedPin}.mode`]: pinMode,
+        [`gpioState.${selectedPin}.state`]: false,
+        [`gpioState.${selectedPin}.hardwareState`]: false,
+        [`gpioState.${selectedPin}.enabled`]: true,
+        [`gpioState.${selectedPin}.mismatch`]: false,
+        [`gpioState.${selectedPin}.active_low`]: activeLow,
+        [`gpioState.${selectedPin}.pin`]: selectedPin,
+        [`gpioState.${selectedPin}.lastUpdated`]: Timestamp.now(),
+      };
+      if (subtype) {
+        pinEntry[`gpioState.${selectedPin}.subtype`] = subtype;
+      }
 
-      selectedPins.forEach(pin => {
-        updateFields[`gpioState.${pin}.enabled`] = true;
-      });
-
-      await updateDoc(deviceRef, updateFields);
+      await updateDoc(deviceRef, pinEntry);
       onClose();
     } catch (err) {
-      console.error('Failed to enable pins:', err);
-      alert('Failed to enable pins: ' + (err instanceof Error ? err.message : String(err)));
+      console.error('Failed to add device:', err);
+      alert('Failed to add device: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
   };
+
+  const freePins = ALL_BCM_PINS.filter(p => !usedPins.has(p));
 
   if (loading) {
     return (
@@ -429,22 +443,19 @@ function AddDeviceModal({ moduleId, hardwareSerial, onClose }: { moduleId: strin
     );
   }
 
-  const disabledPins = allGpioPins.filter(pin => !pin.enabled);
-  const enabledPins = allGpioPins.filter(pin => pin.enabled);
-
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Enable GPIO Pins</h2>
-              <p className="text-sm text-gray-500 mt-1">Select pins to enable them for use</p>
+              <h2 className="text-xl font-bold text-gray-900">Add Device</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                {freePins.length} of {ALL_BCM_PINS.length} GPIO pins available
+              </p>
             </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -453,89 +464,167 @@ function AddDeviceModal({ moduleId, hardwareSerial, onClose }: { moduleId: strin
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Disabled Pins Section */}
-          {disabledPins.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Available to Enable ({disabledPins.length})</h3>
-              <div className="space-y-2 bg-gray-50 rounded-lg p-4 border border-gray-200 max-h-96 overflow-y-auto">
-                {disabledPins.map(pin => (
-                  <div key={pin.pin} className="flex items-center p-3 bg-white rounded-lg hover:bg-blue-50 transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={selectedPins.has(pin.pin)}
-                      onChange={() => handleTogglePin(pin.pin)}
-                      className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                    />
-                    <div className="ml-3 flex-1">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">{pin.name}</p>
-                          <p className="text-xs text-gray-500">Pin {pin.pin} · {pin.mode || 'output'}</p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            pin.hardwareState ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {pin.hardwareState ? 'HIGH' : 'LOW'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Step 1: Select GPIO Pin */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">1. Select GPIO Pin</h3>
+            <div className="grid grid-cols-7 sm:grid-cols-9 gap-2">
+              {ALL_BCM_PINS.map(pin => {
+                const inUse = usedPins.has(pin);
+                const isSelected = selectedPin === pin;
+                const isBus = BUS_PINS[pin];
 
-          {/* Already Enabled Pins Section */}
-          {enabledPins.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Already Enabled ({enabledPins.length})</h3>
-              <div className="space-y-2 bg-green-50 rounded-lg p-4 border border-green-200 max-h-48 overflow-y-auto">
-                {enabledPins.map(pin => (
-                  <div key={pin.pin} className="flex items-center p-3 bg-white rounded-lg border border-green-200">
-                    <div className="w-4 h-4 rounded-full bg-green-500"></div>
-                    <div className="ml-3 flex-1">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">{pin.name}</p>
-                          <p className="text-xs text-gray-500">Pin {pin.pin} · {pin.mode || 'output'}</p>
-                        </div>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          pin.hardwareState ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {pin.hardwareState ? 'HIGH' : 'LOW'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                return (
+                  <button
+                    key={pin}
+                    disabled={inUse}
+                    onClick={() => {
+                      setSelectedPin(pin);
+                      // Reset name so auto-generate triggers
+                      setDeviceName('');
+                    }}
+                    title={inUse ? `GPIO${pin} — in use` : isBus ? `GPIO${pin} — ${isBus} (available)` : `GPIO${pin}`}
+                    className={`
+                      relative flex flex-col items-center justify-center p-2 rounded-lg border-2 text-xs font-mono transition-all
+                      ${inUse
+                        ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-50'
+                        : isSelected
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-lg scale-105'
+                          : isBus
+                            ? 'bg-amber-50 border-amber-300 text-amber-800 hover:border-amber-500 cursor-pointer'
+                            : 'bg-white border-gray-200 text-gray-700 hover:border-blue-400 hover:bg-blue-50 cursor-pointer'
+                      }
+                    `}
+                  >
+                    <span className="font-bold">{pin}</span>
+                    <span className="text-[9px] mt-0.5 opacity-70">
+                      {inUse ? '✗' : isBus ? BUS_PINS[pin]?.split(' ')[0] : 'GPIO'}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          )}
+            <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-gray-200 bg-gray-100 inline-block opacity-50"></span> In use</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-amber-300 bg-amber-50 inline-block"></span> Bus pin (I²C/SPI/UART)</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-gray-200 bg-white inline-block"></span> Available</span>
+            </div>
+          </div>
 
-          {disabledPins.length === 0 && enabledPins.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No GPIO pins found on this device</p>
+          {/* Step 2: Configure Device */}
+          {selectedPin !== null && (
+            <div className="space-y-4 border-t border-gray-200 pt-6">
+              <h3 className="text-sm font-semibold text-gray-900">2. Configure Device on GPIO {selectedPin}</h3>
+
+              {/* Device Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Device Name</label>
+                <input
+                  type="text"
+                  value={deviceName}
+                  onChange={(e) => setDeviceName(e.target.value)}
+                  placeholder={`e.g. Grow Light, Water Pump`}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
+              </div>
+
+              {/* Device Type + Subtype */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                  <select
+                    value={deviceType}
+                    onChange={(e) => { setDeviceType(e.target.value); setSubtype(''); }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  >
+                    <option value="actuator">Actuator</option>
+                    <option value="sensor">Sensor</option>
+                    <option value="camera">Camera</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Subtype</label>
+                  <select
+                    value={subtype}
+                    onChange={(e) => setSubtype(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  >
+                    <option value="">None</option>
+                    {deviceType === 'actuator' && <>
+                      <option value="pump">Pump</option>
+                      <option value="light">Light</option>
+                      <option value="led">LED</option>
+                      <option value="motor">Motor</option>
+                      <option value="fan">Fan</option>
+                      <option value="valve">Valve</option>
+                      <option value="relay">Relay</option>
+                    </>}
+                    {deviceType === 'sensor' && <>
+                      <option value="temperature">Temperature</option>
+                      <option value="humidity">Humidity</option>
+                      <option value="moisture">Soil Moisture</option>
+                      <option value="light">Light Level</option>
+                      <option value="ph">pH</option>
+                      <option value="ec">EC</option>
+                    </>}
+                  </select>
+                </div>
+              </div>
+
+              {/* Pin Mode + Active Low */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pin Mode</label>
+                  <select
+                    value={pinMode}
+                    onChange={(e) => setPinMode(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  >
+                    <option value="output">Output (actuator/relay)</option>
+                    <option value="input">Input (sensor)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Relay Logic</label>
+                  <div className="flex items-center h-[38px]">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={activeLow}
+                        onChange={(e) => setActiveLow(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-gray-200 peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                      <span className="ml-2 text-sm text-gray-600">{activeLow ? 'Active-LOW (relay)' : 'Active-HIGH'}</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {BUS_PINS[selectedPin] && (
+                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <span className="text-amber-500 mt-0.5">⚠️</span>
+                  <p className="text-sm text-amber-800">
+                    GPIO{selectedPin} is typically used for <strong>{BUS_PINS[selectedPin]}</strong>.
+                    Using it as a general-purpose pin will disable that bus.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
 
+        {/* Footer */}
         <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex space-x-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="btn-secondary flex-1"
-          >
+          <button type="button" onClick={onClose} className="btn-secondary flex-1">
             Cancel
           </button>
           <button
             type="button"
-            onClick={handleEnableSelected}
-            disabled={saving || selectedPins.size === 0}
+            onClick={handleAddDevice}
+            disabled={saving || selectedPin === null || !deviceName.trim()}
             className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? 'Enabling...' : `Enable ${selectedPins.size} Pin${selectedPins.size !== 1 ? 's' : ''}`}
+            {saving ? 'Adding...' : selectedPin !== null ? `Add GPIO${selectedPin} Device` : 'Select a Pin'}
           </button>
         </div>
       </div>
