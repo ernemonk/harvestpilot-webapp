@@ -21,27 +21,19 @@ export default function Login() {
   }
 
   return (
-    <AuthLayout title="Sign in" subtitle="Sign in to your account">
+    <AuthLayout title="Welcome back" subtitle="Sign in to your HarvestPilot account">
       <LoginForm onSubmit={handleSubmit} error={error} />
 
-      <div className="mt-8">
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200" />
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-3 bg-white text-gray-500 font-medium">Don't have an account?</span>
-          </div>
-        </div>
-
-        <div className="mt-6">
+      <div className="mt-6 pt-6 border-t border-gray-100">
+        <p className="text-center text-sm text-gray-500">
+          Don&apos;t have an account?{' '}
           <Link
             to="/signup"
-            className="w-full inline-flex justify-center items-center py-3 px-4 border-2 border-gray-200 rounded-lg shadow-sm bg-white text-base font-semibold text-gray-700 hover:bg-gray-50 hover:border-primary-300 transition-all"
+            className="font-semibold text-primary-600 hover:text-primary-700 transition-colors"
           >
-            Create new account
+            Create one
           </Link>
-        </div>
+        </p>
       </div>
     </AuthLayout>
   );
