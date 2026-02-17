@@ -229,12 +229,20 @@ function DeviceRow({ device, onClick, moduleId, hardwareSerial }: { device: Devi
 
   const handleToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (device.type !== 'actuator' || !hardwareSerial) return;
+    if (device.type !== 'actuator' || !hardwareSerial || device.pin === undefined) return;
     
     const newState = !isOn;
     setOptimisticState(newState); // Instant visual feedback
     setToggling(true);
     try {
+      // 1. Direct update to gpioState for sub-second Pi response
+      const deviceRef = doc(db, 'devices', hardwareSerial);
+      await updateDoc(deviceRef, {
+        [`gpioState.${device.pin}.state`]: newState,
+        [`gpioState.${device.pin}.lastUpdated`]: Timestamp.now()
+      });
+
+      // 2. Keep the command for logging/audit trail
       await addDoc(collection(db, `devices/${hardwareSerial}/commands`), {
         id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
         type: 'pin_control',
@@ -257,6 +265,14 @@ function DeviceRow({ device, onClick, moduleId, hardwareSerial }: { device: Devi
     setOptimisticPwm(dutyCycle);
     setPwmChanging(true);
     try {
+      // 1. Direct update to gpioState for sub-second Pi response
+      const deviceRef = doc(db, 'devices', hardwareSerial);
+      await updateDoc(deviceRef, {
+        [`gpioState.${device.pin}.pwmDutyCycle`]: dutyCycle,
+        [`gpioState.${device.pin}.lastUpdated`]: Timestamp.now()
+      });
+      
+      // 2. Also send command for audit
       await commands.pwmControl(device.pin, dutyCycle);
     } catch (err) {
       console.error('PWM control failed:', err);
@@ -697,6 +713,7 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [optimisticState, setOptimisticState] = useState<boolean | null>(null);
+  const [optimisticPwm, setOptimisticPwm] = useState<number | null>(null);
 
   const isACtuator = device?.type === 'actuator';
   const isSensor = device?.type === 'sensor';
@@ -705,12 +722,18 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
   const confirmedState = device?.hardwareState !== undefined ? device?.hardwareState === true : device?.state === true;
   const isOn = optimisticState !== null ? optimisticState : confirmedState;
   
+  // PWM state - assume 0 if not set
+  const currentPwm = optimisticPwm !== null ? optimisticPwm : (device?.pwmDutyCycle || 0);
+
   // Clear optimistic state once Firestore confirms
   useEffect(() => {
     if (optimisticState !== null && confirmedState === optimisticState) {
       setOptimisticState(null);
     }
-  }, [confirmedState, optimisticState]);
+    if (optimisticPwm !== null && device?.pwmDutyCycle === optimisticPwm) {
+      setOptimisticPwm(null);
+    }
+  }, [confirmedState, device?.pwmDutyCycle, optimisticState, optimisticPwm]);
 
   // Load schedules from Firestore when drawer opens
   // Path: devices/{hardwareSerial}/gpioState.{pin}.schedules (as a map field)
@@ -777,6 +800,14 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
     setOptimisticState(newState); // Instant visual feedback
     setToggling(true);
     try {
+      // 1. Direct update for speed
+      const deviceRef = doc(db, 'devices', device.hardwareSerial);
+      await updateDoc(deviceRef, {
+        [`gpioState.${device.pin}.state`]: newState,
+        [`gpioState.${device.pin}.lastUpdated`]: Timestamp.now()
+      });
+
+      // 2. Command for audit/compatibility
       await addDoc(collection(db, `devices/${device.hardwareSerial}/commands`), {
         id: crypto.randomUUID?.() || Date.now().toString(),
         type: 'pin_control',
@@ -785,7 +816,7 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
         issuedAt: Timestamp.now(),
         status: 'pending',
       });
-      console.log('✅ Pin control command sent for GPIO', device.pin, '→', newState ? 'ON' : 'OFF');
+      console.log('✅ Pin control sent for GPIO', device.pin, '→', newState ? 'ON' : 'OFF');
     } catch (err) {
       console.error('Toggle failed:', err);
       setOptimisticState(null); // Revert on failure
@@ -797,16 +828,33 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
   const handlePwmChange = async (dutyCycle: number) => {
     if (!isACtuator || !device?.hardwareSerial || device?.pin === undefined) return;
     
+    setOptimisticPwm(dutyCycle);
     try {
-      // Update Firestore with new PWM duty cycle
+      // 1. Direct update for speed
       const deviceRef = doc(db, 'devices', device.hardwareSerial);
       await updateDoc(deviceRef, {
         [`gpioState.${device.pin}.pwmDutyCycle`]: dutyCycle,
         [`gpioState.${device.pin}.lastUpdated`]: Timestamp.now(),
       });
+      
+      // 2. Also send command for compatibility/logging
+      // We can use the useCommands hook if we want, but since we are in a subcomponent, 
+      // we'll just use simple addDoc or a manual command helper if needed.
+      // Actually, useCommands might not be easily accessible here without prop drilling 
+      // or using it inside this component. Let's just use addDoc for the command.
+      await addDoc(collection(db, `devices/${device.hardwareSerial}/commands`), {
+        id: crypto.randomUUID?.() || Date.now().toString(),
+        type: 'pwm_control',
+        pin: device.pin,
+        duty_cycle: dutyCycle,
+        issuedAt: Timestamp.now(),
+        status: 'pending'
+      });
+      
       console.log('✅ PWM duty cycle updated for GPIO', device.pin, '→', dutyCycle + '%');
     } catch (err) {
       console.error('PWM update failed:', err);
+      setOptimisticPwm(null);
     }
   };
 
@@ -981,7 +1029,7 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
                       type="range"
                       min="0"
                       max="100"
-                      value={device?.pwmDutyCycle || 0}
+                      value={currentPwm}
                       onChange={(e) => handlePwmChange(parseInt(e.target.value))}
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                       disabled={!device?.enabled}
@@ -993,7 +1041,7 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
                           type="number"
                           min="0"
                           max="100"
-                          value={device?.pwmDutyCycle || 0}
+                          value={currentPwm}
                           onChange={(e) => handlePwmChange(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
                           className="w-16 px-2 py-1 border border-gray-300 rounded text-xs text-center focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
                           disabled={!device?.enabled}

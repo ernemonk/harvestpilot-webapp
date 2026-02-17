@@ -258,6 +258,7 @@ export interface GPIOPinState {
   subtype?: string; // pump, light, motor, etc.
   
   // Real-time state
+  state: boolean;  // Desired state (True=ON, False=OFF)
   hardwareState?: boolean;
   pwmDutyCycle?: number; // 0-100 for PWM control
   lastHardwareRead?: Timestamp;
