@@ -8,7 +8,8 @@
 import { useState, useEffect } from 'react';
 import { doc, onSnapshot, updateDoc, deleteField, Timestamp, addDoc, collection } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import type { DeviceType, SensorType, ActuatorType, ModuleDevice } from '../../types/farmModule';
+import { useCommands } from '../../hooks/useCommands';
+import type { DeviceType, SensorType, ActuatorType, ModuleDevice, GPIOPinState, DeviceListItem } from '../../types/farmModule';
 
 interface DevicesSectionProps {
   moduleId: string;
@@ -45,7 +46,7 @@ export default function DevicesSection({ moduleId, hardwareSerial }: DevicesSect
         const data = snapshot.data();
         const gpioState = data.gpioState || {};
         // Convert gpioState map to array, with pin number as id
-        const deviceList = Object.entries(gpioState).map(([pin, pinData]: any) => {
+        const deviceList = Object.entries(gpioState).map(([pin, pinData]: [string, GPIOPinState]) => {
           // Use device_type from Firestore (set by Pi), fallback to name-based inference
           const name = pinData.name || '';
           let type = pinData.device_type || 'actuator';
@@ -200,21 +201,31 @@ function DeviceGroup({ title, icon, devices, onDeviceClick, moduleId, hardwareSe
   );
 }
 
-function DeviceRow({ device, onClick, moduleId, hardwareSerial }: { device: any; onClick: () => void; moduleId?: string; hardwareSerial?: string }) {
+function DeviceRow({ device, onClick, moduleId, hardwareSerial }: { device: DeviceListItem; onClick: () => void; moduleId?: string; hardwareSerial?: string }) {
+  const commands = useCommands(hardwareSerial);
   const [toggling, setToggling] = useState(false);
+  const [pwmChanging, setPwmChanging] = useState(false);
   const [optimisticState, setOptimisticState] = useState<boolean | null>(null);
+  const [optimisticPwm, setOptimisticPwm] = useState<number | null>(null);
   // Show ACTUAL hardware state when available, so the toggle reflects physical reality
   const hasMismatch = device.mismatch === true;
   const confirmedState = device.hardwareState !== undefined ? device.hardwareState === true : device.state === true;
   // Use optimistic state for instant feedback, fall back to confirmed Firestore state
   const isOn = optimisticState !== null ? optimisticState : confirmedState;
   
-  // Clear optimistic state once Firestore confirms the change
+  // PWM state - assume 0 if not set
+  const currentPwm = optimisticPwm !== null ? optimisticPwm : (device.pwmDutyCycle || 0);
+  const isPwmCapable = device.name && (device.name.includes('PWM') || device.name.includes('Motor') || device.name.includes('LED') || device.name.includes('Light'));
+  
+  // Clear optimistic states once Firestore confirms the change
   useEffect(() => {
     if (optimisticState !== null && confirmedState === optimisticState) {
       setOptimisticState(null);
     }
-  }, [confirmedState, optimisticState]);
+    if (optimisticPwm !== null && device.pwmDutyCycle === optimisticPwm) {
+      setOptimisticPwm(null);
+    }
+  }, [confirmedState, device.pwmDutyCycle, optimisticState, optimisticPwm]);
 
   const handleToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -237,6 +248,21 @@ function DeviceRow({ device, onClick, moduleId, hardwareSerial }: { device: any;
       setOptimisticState(null); // Revert on failure
     } finally {
       setToggling(false);
+    }
+  };
+
+  const handlePwmChange = async (dutyCycle: number) => {
+    if (device.type !== 'actuator' || !hardwareSerial || device.pin === undefined) return;
+    
+    setOptimisticPwm(dutyCycle);
+    setPwmChanging(true);
+    try {
+      await commands.pwmControl(device.pin, dutyCycle);
+    } catch (err) {
+      console.error('PWM control failed:', err);
+      setOptimisticPwm(null);
+    } finally {
+      setPwmChanging(false);
     }
   };
 
@@ -294,34 +320,61 @@ function DeviceRow({ device, onClick, moduleId, hardwareSerial }: { device: any;
           </div>
         </button>
 
-        {/* Toggle Switch for Actuators */}
+        {/* Controls for Actuators */}
         {device.type === 'actuator' && (
-          <div className="flex items-center space-x-3 ml-4">
-            {hasMismatch && (
-              <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full" title="Hardware state doesn't match desired state">
-                ⚠ Mismatch
+          <div className="flex flex-col items-end space-y-2 ml-4">
+            {/* On/Off Toggle */}
+            <div className="flex items-center space-x-3">
+              {hasMismatch && (
+                <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full" title="Hardware state doesn't match desired state">
+                  ⚠ Mismatch
+                </span>
+              )}
+              <span className={`text-sm font-medium ${isOn ? 'text-green-600' : 'text-gray-500'}`}>
+                {isOn ? 'ON' : 'OFF'}
               </span>
-            )}
-            <span className={`text-sm font-medium ${isOn ? 'text-green-600' : 'text-gray-500'}`}>
-              {isOn ? 'ON' : 'OFF'}
-            </span>
-            <button
-              onClick={handleToggle}
-              disabled={toggling || device.pin === undefined}
-              className={`relative inline-flex items-center w-14 h-7 rounded-full transition-colors ${
-                isOn ? 'bg-green-500' : 'bg-gray-300'
-              } ${toggling ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-90'}`}
-            >
-              <span className={`inline-block w-6 h-6 transform rounded-full bg-white shadow-md transition-transform ${
-                isOn ? 'translate-x-7' : 'translate-x-0.5'
-              }`}>
-                {toggling && (
-                  <span className="absolute inset-0 flex items-center justify-center">
-                    <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              <button
+                onClick={handleToggle}
+                disabled={toggling || device.pin === undefined}
+                className={`relative inline-flex items-center w-14 h-7 rounded-full transition-colors ${
+                  isOn ? 'bg-green-500' : 'bg-gray-300'
+                } ${toggling ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-90'}`}
+              >
+                <span className={`inline-block w-6 h-6 transform rounded-full bg-white shadow-md transition-transform ${
+                  isOn ? 'translate-x-7' : 'translate-x-0.5'
+                }`}>
+                  {toggling && (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                    </span>
+                  )}
+                </span>
+              </button>
+            </div>
+
+            {/* PWM Control for PWM-capable devices */}
+            {isPwmCapable && (
+              <div className="flex items-center space-x-3 min-w-0">
+                <span className="text-xs text-gray-500 whitespace-nowrap">PWM</span>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={currentPwm}
+                    onChange={(e) => handlePwmChange(parseInt(e.target.value))}
+                    disabled={pwmChanging || device.pin === undefined}
+                    className="w-20 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                  <span className="text-xs font-medium text-gray-700 min-w-[2rem] text-right">
+                    {currentPwm}%
                   </span>
-                )}
-              </span>
-            </button>
+                  {pwmChanging && (
+                    <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

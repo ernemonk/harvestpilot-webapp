@@ -140,7 +140,7 @@ export default function FarmModule() {
         {activeTab === 'devices' && <DevicesSection moduleId={module.id} hardwareSerial={module.id} />}
         {activeTab === 'automations' && <AutomationsSection moduleId={module.id} />}
         {activeTab === 'analytics' && <GrowthAnalytics moduleId={module.id} />}
-        {activeTab === 'harvest' && <HarvestCycleSection moduleId={module.id} />}
+        {activeTab === 'harvest' && <HarvestCycleSection moduleId={module.id} hardwareSerial={module.id} />}
         {activeTab === 'camera' && <CameraSection moduleId={module.id} />}
       </div>
     </div>

@@ -152,6 +152,154 @@ export interface HarvestCycle {
 }
 
 // ============================================
+// GROW PROGRAM — Multi-day automation templates
+// ============================================
+
+export type GrowStageType = 'seeding' | 'germination' | 'blackout' | 'light_exposure' | 'growth' | 'pre_harvest' | 'harvest';
+
+export interface StageScheduleConfig {
+  targetSubtype: 'pump' | 'light' | 'mist' | 'fan' | 'valve';
+  durationSeconds: number;
+  frequencySeconds: number;
+  startTime?: string; // HH:MM
+  endTime?: string;   // HH:MM
+}
+
+export interface StageEnvironment {
+  tempMinF?: number;
+  tempMaxF?: number;
+  humidityMin?: number;
+  humidityMax?: number;
+  coverTrays?: boolean;
+}
+
+export interface GrowStage {
+  name: string;
+  type: GrowStageType;
+  dayStart: number;
+  dayEnd: number;
+  schedules: StageScheduleConfig[];
+  lighting: {
+    enabled: boolean;
+    onHour?: number;
+    offHour?: number;
+  };
+  environment: StageEnvironment;
+  checklist: string[];
+  notes?: string;
+}
+
+export interface GrowProgram {
+  id?: string;
+  name: string;
+  cropType: string;
+  description?: string;
+  totalDays: number;
+  stages: GrowStage[];
+  isPreset: boolean;
+  organizationId?: string;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+export interface GrowCycle {
+  id?: string;
+  moduleId: string;
+  organizationId: string;
+  programId: string;
+  programName: string;
+  cropType: string;
+  totalDays: number;
+  status: 'active' | 'paused' | 'completed' | 'aborted';
+  startedAt: Timestamp;
+  currentDay: number;
+  currentStage: GrowStageType;
+  pausedAt?: Timestamp;
+  completedAt?: Timestamp;
+  /** Frozen copy of the program stages at start time */
+  stages: GrowStage[];
+  pinBindings: Record<string, number>; // subtype → BCM pin number
+  stageHistory: {
+    stage: GrowStageType;
+    stageName: string;
+    startedAt: Timestamp;
+    completedAt?: Timestamp;
+    notes?: string;
+  }[];
+  dailyLog: {
+    day: number;
+    date: string;
+    stage: GrowStageType;
+    notes?: string;
+  }[];
+  harvest?: {
+    date: Timestamp;
+    yieldWeight?: number;
+    yieldUnit?: 'oz' | 'g' | 'lbs' | 'kg';
+    quality?: 'excellent' | 'good' | 'fair' | 'poor';
+    notes?: string;
+  };
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// ============================================
+// GPIO PIN STATE (Real-time from Firestore gpioState)
+// ============================================
+
+export interface GPIOPinState {
+  // Configuration
+  active_low: boolean;
+  device_type: 'sensor' | 'actuator' | 'camera';
+  enabled: boolean;
+  mode: 'input' | 'output';
+  name: string;
+  pin: number;
+  subtype?: string; // pump, light, motor, etc.
+  
+  // Real-time state
+  hardwareState?: boolean;
+  pwmDutyCycle?: number; // 0-100 for PWM control
+  lastHardwareRead?: Timestamp;
+  lastUpdated?: Timestamp;
+  mismatch?: boolean;
+  
+  // Schedules
+  schedules?: Record<string, GPIOSchedule>;
+}
+
+// Device list item (extends GPIOPinState with computed properties)
+export interface DeviceListItem extends GPIOPinState {
+  id: string; // computed: `${deviceKey}-${pin}`
+  type: DeviceType; // normalized from device_type
+}
+
+export interface GPIOSchedule {
+  name: string;
+  pin: number;
+  enabled: boolean;
+  durationSeconds: number;
+  frequencySeconds: number;
+  startTime?: string; // HH:MM
+  endTime?: string;   // HH:MM
+  state?: boolean;
+  subtype?: string;
+  createdAt?: Timestamp;
+  last_run_at?: Timestamp;
+  
+  // PWM schedule support
+  pwm_duty_start?: number;
+  pwm_duty_end?: number;
+  pwm_fade_duration?: number;
+  
+  // Grow cycle metadata
+  managedBy?: 'grow_cycle';
+  cycleId?: string;
+  stage?: string;
+  stageName?: string;
+}
+
+// ============================================
 // CAMERA CONFIG
 // ============================================
 

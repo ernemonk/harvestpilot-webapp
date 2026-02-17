@@ -24,6 +24,7 @@ export type CommandType =
   | 'lights_on'
   | 'lights_off'
   | 'lights_brightness'
+  | 'pwm_control'
   | 'set_autopilot_mode'
   | 'update_crop_config'
   | 'emergency_stop'
@@ -40,6 +41,7 @@ interface UseCommandsResult {
   lightsOn: () => Promise<void>;
   lightsOff: () => Promise<void>;
   lightsBrightness: (brightness: number) => Promise<void>;
+  pwmControl: (pin: number, dutyCycle: number) => Promise<void>;
   setAutopilot: (mode: AutopilotMode) => Promise<void>;
   emergencyStop: () => Promise<void>;
 }
@@ -90,6 +92,9 @@ export function useCommands(deviceId: string | null | undefined): UseCommandsRes
   const lightsBrightness = (brightness: number) =>
     sendCommand('lights_brightness', { brightness });
 
+  const pwmControl = (pin: number, dutyCycle: number) =>
+    sendCommand('pwm_control', { pin, duty_cycle: dutyCycle });
+
   const setAutopilot = (mode: AutopilotMode) =>
     sendCommand('set_autopilot_mode', { mode });
 
@@ -104,6 +109,7 @@ export function useCommands(deviceId: string | null | undefined): UseCommandsRes
     lightsOn,
     lightsOff,
     lightsBrightness,
+    pwmControl,
     setAutopilot,
     emergencyStop,
   };
