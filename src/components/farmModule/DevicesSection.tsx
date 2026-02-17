@@ -737,6 +737,7 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
             frequencyDisplay: `${scheduleData.frequencySeconds} seconds`,
             startTime: scheduleData.startTime,
             endTime: scheduleData.endTime,
+            pwmDutyCycle: scheduleData.pwm_duty_start || scheduleData.pwmDutyCycle || 100, // Load PWM duty cycle
             enabled: scheduleData.enabled,
             createdAt: scheduleData.createdAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
           };
@@ -790,6 +791,22 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
       setOptimisticState(null); // Revert on failure
     } finally {
       setToggling(false);
+    }
+  };
+
+  const handlePwmChange = async (dutyCycle: number) => {
+    if (!isACtuator || !device?.hardwareSerial || device?.pin === undefined) return;
+    
+    try {
+      // Update Firestore with new PWM duty cycle
+      const deviceRef = doc(db, 'devices', device.hardwareSerial);
+      await updateDoc(deviceRef, {
+        [`gpioState.${device.pin}.pwmDutyCycle`]: dutyCycle,
+        [`gpioState.${device.pin}.lastUpdated`]: Timestamp.now(),
+      });
+      console.log('✅ PWM duty cycle updated for GPIO', device.pin, '→', dutyCycle + '%');
+    } catch (err) {
+      console.error('PWM update failed:', err);
     }
   };
 
@@ -946,7 +963,8 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
           {isACtuator && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
               <h3 className="text-sm font-semibold text-amber-900 mb-3">⚙️ Quick Control</h3>
-              <div className="space-y-2">
+              <div className="space-y-4">
+                {/* ON/OFF Toggle */}
                 <button
                   onClick={handleToggleState}
                   disabled={toggling || !device?.enabled}
@@ -954,6 +972,39 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
                 >
                   {toggling ? 'Switching...' : isOn ? 'Turn OFF' : 'Turn ON'}
                 </button>
+
+                {/* PWM Control */}
+                <div>
+                  <label className="block text-sm font-medium text-amber-900 mb-2">PWM Duty Cycle</label>
+                  <div className="space-y-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={device?.pwmDutyCycle || 0}
+                      onChange={(e) => handlePwmChange(parseInt(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                      disabled={!device?.enabled}
+                    />
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">0%</span>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={device?.pwmDutyCycle || 0}
+                          onChange={(e) => handlePwmChange(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                          className="w-16 px-2 py-1 border border-gray-300 rounded text-xs text-center focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
+                          disabled={!device?.enabled}
+                        />
+                        <span className="text-xs text-gray-600">%</span>
+                      </div>
+                      <span className="text-xs text-gray-500">100%</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-amber-700 mt-1">Real-time PWM control (0% = OFF, 100% = FULL ON)</p>
+                </div>
               </div>
             </div>
           )}
@@ -1056,8 +1107,10 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
     frequencyUnit: 'minutes',
     startTime: '',
     endTime: '',
+    pwmDutyCycle: 100, // Add PWM duty cycle (0-100%)
     enabled: true,
   });
+  const [editingSchedule, setEditingSchedule] = useState<any>(null); // Track which schedule is being edited
   const [saving, setSaving] = useState(false);
 
   const unitToSeconds: Record<string, number> = {
@@ -1085,6 +1138,7 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
       frequencyDisplay: `${newSchedule.frequencyValue} ${newSchedule.frequencyUnit}`,
       startTime: newSchedule.startTime || null,
       endTime: newSchedule.endTime || null,
+      pwmDutyCycle: newSchedule.pwmDutyCycle, // Include PWM duty cycle
       enabled: newSchedule.enabled,
       createdAt: new Date().toISOString(),
     };
@@ -1102,6 +1156,9 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
           endTime: schedule.endTime,
           enabled: schedule.enabled,
           pin: device.pin,
+          pwm_duty_start: schedule.pwmDutyCycle, // Set PWM duty cycle for schedule execution
+          pwm_duty_end: schedule.pwmDutyCycle,   // Same value (no fading for basic scheduling)
+          pwm_fade_duration: 0,                   // No fading
           createdAt: Timestamp.fromDate(new Date(schedule.createdAt)),
         }
       });
@@ -1116,6 +1173,7 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
         frequencyUnit: 'minutes',
         startTime: '',
         endTime: '',
+        pwmDutyCycle: 100, // Reset PWM duty cycle
         enabled: true,
       });
       setShowScheduleForm(false);
@@ -1161,12 +1219,125 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
     }
   };
 
+  const handleEditSchedule = (schedule: any) => {
+    // Convert duration and frequency back to form values
+    const durationValue = schedule.durationSeconds;
+    const durationUnit = durationValue >= 86400 ? 'days' : durationValue >= 3600 ? 'hours' : durationValue >= 60 ? 'minutes' : 'seconds';
+    const durationNum = durationUnit === 'days' ? durationValue / 86400 : durationUnit === 'hours' ? durationValue / 3600 : durationUnit === 'minutes' ? durationValue / 60 : durationValue;
+
+    const frequencyValue = schedule.frequencySeconds;
+    const frequencyUnit = frequencyValue >= 86400 ? 'days' : frequencyValue >= 3600 ? 'hours' : frequencyValue >= 60 ? 'minutes' : 'seconds';
+    const frequencyNum = frequencyUnit === 'days' ? frequencyValue / 86400 : frequencyUnit === 'hours' ? frequencyValue / 3600 : frequencyUnit === 'minutes' ? frequencyValue / 60 : frequencyValue;
+
+    setNewSchedule({
+      name: schedule.name,
+      durationValue: durationNum,
+      durationUnit,
+      frequencyValue: frequencyNum,
+      frequencyUnit,
+      startTime: schedule.startTime || '',
+      endTime: schedule.endTime || '',
+      pwmDutyCycle: schedule.pwmDutyCycle || 100,
+      enabled: schedule.enabled,
+    });
+    setEditingSchedule(schedule);
+    setShowScheduleForm(true);
+  };
+
+  const handleUpdateSchedule = async () => {
+    if (!newSchedule.name.trim() || !editingSchedule) {
+      alert('Please enter a schedule name');
+      return;
+    }
+
+    const durationSeconds = newSchedule.durationValue * unitToSeconds[newSchedule.durationUnit];
+    const frequencySeconds = newSchedule.frequencyValue * unitToSeconds[newSchedule.frequencyUnit];
+
+    const updatedSchedule = {
+      ...editingSchedule,
+      name: newSchedule.name,
+      durationSeconds,
+      frequencySeconds,
+      durationDisplay: `${newSchedule.durationValue} ${newSchedule.durationUnit}`,
+      frequencyDisplay: `${newSchedule.frequencyValue} ${newSchedule.frequencyUnit}`,
+      startTime: newSchedule.startTime || null,
+      endTime: newSchedule.endTime || null,
+      pwmDutyCycle: newSchedule.pwmDutyCycle,
+      enabled: newSchedule.enabled,
+    };
+
+    setSaving(true);
+    try {
+      // Update path: devices/{hardwareSerial} > gpioState.{pin}.schedules.{scheduleId}
+      const deviceRef = doc(db, 'devices', device.hardwareSerial);
+      await updateDoc(deviceRef, {
+        [`gpioState.${device.pin}.schedules.${editingSchedule.id}`]: {
+          name: updatedSchedule.name,
+          durationSeconds: updatedSchedule.durationSeconds,
+          frequencySeconds: updatedSchedule.frequencySeconds,
+          startTime: updatedSchedule.startTime,
+          endTime: updatedSchedule.endTime,
+          enabled: updatedSchedule.enabled,
+          pin: device.pin,
+          pwm_duty_start: updatedSchedule.pwmDutyCycle,
+          pwm_duty_end: updatedSchedule.pwmDutyCycle,
+          pwm_fade_duration: 0,
+          createdAt: Timestamp.fromDate(new Date(updatedSchedule.createdAt)),
+        }
+      });
+
+      console.log('✅ Schedule updated in gpioState.' + device.pin + '.schedules.' + editingSchedule.id, updatedSchedule);
+      setSchedules(schedules.map((s: any) => s.id === editingSchedule.id ? updatedSchedule : s));
+      setNewSchedule({
+        name: '',
+        durationValue: 30,
+        durationUnit: 'seconds',
+        frequencyValue: 5,
+        frequencyUnit: 'minutes',
+        startTime: '',
+        endTime: '',
+        pwmDutyCycle: 100,
+        enabled: true,
+      });
+      setEditingSchedule(null);
+      setShowScheduleForm(false);
+    } catch (err) {
+      console.error('❌ Failed to update schedule:', err);
+      alert('Failed to update schedule in Firestore');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setNewSchedule({
+      name: '',
+      durationValue: 30,
+      durationUnit: 'seconds',
+      frequencyValue: 5,
+      frequencyUnit: 'minutes',
+      startTime: '',
+      endTime: '',
+      pwmDutyCycle: 100,
+      enabled: true,
+    });
+    setEditingSchedule(null);
+    setShowScheduleForm(false);
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-gray-700">📅 Interval Schedules</h3>
         <button
-          onClick={() => setShowScheduleForm(!showScheduleForm)}
+          onClick={() => {
+            if (editingSchedule) {
+              // If editing, cancel edit and show form for new schedule
+              handleCancelEdit();
+            } else {
+              setShowScheduleForm(!showScheduleForm);
+            }
+          }}
           className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors disabled:opacity-50"
           disabled={saving}
         >
@@ -1242,6 +1413,39 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
             <p className="text-xs text-gray-500 mt-1">Pause for {newSchedule.frequencyValue} {newSchedule.frequencyUnit} between each run</p>
           </div>
 
+          {/* PWM Duty Cycle */}
+          <div>
+            <label className="text-xs font-medium text-gray-700 block mb-2">PWM Duty Cycle</label>
+            <div className="space-y-2">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={newSchedule.pwmDutyCycle}
+                onChange={(e) => setNewSchedule({ ...newSchedule, pwmDutyCycle: parseInt(e.target.value) })}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                disabled={saving}
+              />
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-gray-500">0%</span>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={newSchedule.pwmDutyCycle}
+                    onChange={(e) => setNewSchedule({ ...newSchedule, pwmDutyCycle: Math.max(0, Math.min(100, parseInt(e.target.value) || 0)) })}
+                    className="w-16 px-2 py-1 border border-gray-300 rounded text-xs text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={saving}
+                  />
+                  <span className="text-xs text-gray-600">%</span>
+                </div>
+                <span className="text-xs text-gray-500">100%</span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Set the PWM duty cycle for this schedule (0% = OFF, 100% = FULL ON)</p>
+          </div>
+
           {/* Optional Time Window */}
           <div className="pt-2 border-t border-blue-200">
             <p className="text-xs font-medium text-gray-700 mb-2">⏰ Optional Time Window</p>
@@ -1273,18 +1477,18 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-2 border-t border-blue-200">
             <button
-              onClick={() => setShowScheduleForm(false)}
+              onClick={editingSchedule ? handleCancelEdit : () => setShowScheduleForm(false)}
               className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium text-sm disabled:opacity-50"
               disabled={saving}
             >
               Cancel
             </button>
             <button
-              onClick={handleCreateSchedule}
+              onClick={editingSchedule ? handleUpdateSchedule : handleCreateSchedule}
               disabled={saving}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm disabled:opacity-50"
             >
-              {saving ? 'Saving...' : 'Create Schedule'}
+              {saving ? 'Saving...' : editingSchedule ? 'Update Schedule' : 'Create Schedule'}
             </button>
           </div>
         </div>
@@ -1306,6 +1510,9 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
                 </div>
                 <p className="text-gray-600 mt-1">
                   Run for <span className="font-medium">{schedule.durationDisplay}</span>, pause <span className="font-medium">{schedule.frequencyDisplay}</span>
+                  {schedule.pwmDutyCycle !== undefined && schedule.pwmDutyCycle !== 100 && (
+                    <span className="ml-1 text-purple-600">• PWM: {schedule.pwmDutyCycle}%</span>
+                  )}
                 </p>
                 {(schedule.startTime || schedule.endTime) && (
                   <p className="text-gray-500 text-xs mt-1">
@@ -1314,6 +1521,14 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
                 )}
               </div>
               <div className="flex items-center space-x-1 ml-2 flex-shrink-0">
+                <button
+                  onClick={() => handleEditSchedule(schedule)}
+                  disabled={saving}
+                  className="text-blue-600 hover:text-blue-700 transition-colors font-medium text-sm disabled:opacity-50 px-2 py-1"
+                  title="Edit schedule"
+                >
+                  ✏️ Edit
+                </button>
                 <button
                   onClick={() => handleToggleSchedule(schedule.id, schedule.enabled)}
                   disabled={saving}
@@ -1325,6 +1540,7 @@ function SchedulingSection({ device, schedules, setSchedules, showScheduleForm, 
                   onClick={() => handleDeleteSchedule(schedule.id)}
                   disabled={saving}
                   className="text-red-600 hover:text-red-700 transition-colors font-bold text-lg disabled:opacity-50"
+                  title="Delete schedule"
                 >
                   ×
                 </button>
