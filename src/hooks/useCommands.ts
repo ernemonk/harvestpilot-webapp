@@ -65,7 +65,8 @@ export function useCommands(deviceId: string | null | undefined): UseCommandsRes
       await addDoc(collection(db, `devices/${deviceId}/commands`), {
         id: generateId(),
         type,
-        payload,
+        ...payload,   // Spread at top level so Pi can always find pin, action, etc.
+        payload,       // Also keep nested for backwards compatibility
         issuedAt: Date.now(),
         status: 'pending',
         executedAt: null,

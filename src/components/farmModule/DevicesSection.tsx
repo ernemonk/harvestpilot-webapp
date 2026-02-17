@@ -202,7 +202,6 @@ function DeviceGroup({ title, icon, devices, onDeviceClick, moduleId, hardwareSe
 }
 
 function DeviceRow({ device, onClick, moduleId, hardwareSerial }: { device: DeviceListItem; onClick: () => void; moduleId?: string; hardwareSerial?: string }) {
-  const commands = useCommands(hardwareSerial);
   const [toggling, setToggling] = useState(false);
   const [pwmChanging, setPwmChanging] = useState(false);
   const [optimisticState, setOptimisticState] = useState<boolean | null>(null);
@@ -215,7 +214,10 @@ function DeviceRow({ device, onClick, moduleId, hardwareSerial }: { device: Devi
   
   // PWM state - assume 0 if not set
   const currentPwm = optimisticPwm !== null ? optimisticPwm : (device.pwmDutyCycle || 0);
-  const isPwmCapable = device.name && (device.name.includes('PWM') || device.name.includes('Motor') || device.name.includes('LED') || device.name.includes('Light'));
+  const isPwmCapable = device.type === 'actuator' && (
+    (device.name && (device.name.includes('PWM') || device.name.includes('Motor') || device.name.includes('LED') || device.name.includes('Light') || device.name.includes('light'))) ||
+    (device.subtype && ['light', 'motor', 'fan', 'pump'].includes(device.subtype))
+  );
   
   // Clear optimistic states once Firestore confirms the change
   useEffect(() => {
@@ -280,8 +282,15 @@ function DeviceRow({ device, onClick, moduleId, hardwareSerial }: { device: Devi
       
       await updateDoc(deviceRef, updates);
       
-      // 2. Also send command for audit
-      await commands.pwmControl(device.pin, dutyCycle);
+      // 2. Also send command for audit (raw addDoc with pin at top level)
+      await addDoc(collection(db, `devices/${hardwareSerial}/commands`), {
+        id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+        type: 'pwm_control',
+        pin: device.pin,
+        duty_cycle: dutyCycle,
+        issuedAt: Timestamp.now(),
+        status: 'pending',
+      });
     } catch (err) {
       console.error('PWM control failed:', err);
       setOptimisticPwm(null);
