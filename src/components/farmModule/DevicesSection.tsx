@@ -267,10 +267,18 @@ function DeviceRow({ device, onClick, moduleId, hardwareSerial }: { device: Devi
     try {
       // 1. Direct update to gpioState for sub-second Pi response
       const deviceRef = doc(db, 'devices', hardwareSerial);
-      await updateDoc(deviceRef, {
+      const updates: any = {
         [`gpioState.${device.pin}.pwmDutyCycle`]: dutyCycle,
         [`gpioState.${device.pin}.lastUpdated`]: Timestamp.now()
-      });
+      };
+      
+      // If setting PWM > 0 and device is currently marked OFF, turn it ON automatically
+      if (dutyCycle > 0 && !isOn) {
+        updates[`gpioState.${device.pin}.state`] = true;
+        setOptimisticState(true);
+      }
+      
+      await updateDoc(deviceRef, updates);
       
       // 2. Also send command for audit
       await commands.pwmControl(device.pin, dutyCycle);
@@ -832,16 +840,20 @@ function DeviceDetailsDrawer({ device, onClose, onUpdate }: any) {
     try {
       // 1. Direct update for speed
       const deviceRef = doc(db, 'devices', device.hardwareSerial);
-      await updateDoc(deviceRef, {
+      const updates: any = {
         [`gpioState.${device.pin}.pwmDutyCycle`]: dutyCycle,
         [`gpioState.${device.pin}.lastUpdated`]: Timestamp.now(),
-      });
+      };
+      
+      // If setting PWM > 0 and device is currently marked OFF, turn it ON automatically
+      if (dutyCycle > 0 && !isOn) {
+        updates[`gpioState.${device.pin}.state`] = true;
+        setOptimisticState(true);
+      }
+      
+      await updateDoc(deviceRef, updates);
       
       // 2. Also send command for compatibility/logging
-      // We can use the useCommands hook if we want, but since we are in a subcomponent, 
-      // we'll just use simple addDoc or a manual command helper if needed.
-      // Actually, useCommands might not be easily accessible here without prop drilling 
-      // or using it inside this component. Let's just use addDoc for the command.
       await addDoc(collection(db, `devices/${device.hardwareSerial}/commands`), {
         id: crypto.randomUUID?.() || Date.now().toString(),
         type: 'pwm_control',
