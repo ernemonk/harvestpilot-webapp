@@ -8,7 +8,6 @@
 import { useState, useEffect } from 'react';
 import { doc, onSnapshot, updateDoc, deleteField, Timestamp, addDoc, collection } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { useCommands } from '../../hooks/useCommands';
 import type { DeviceType, SensorType, ActuatorType, ModuleDevice, GPIOPinState, DeviceListItem } from '../../types/farmModule';
 
 interface DevicesSectionProps {
