@@ -198,6 +198,8 @@ export interface GrowProgram {
   stages: GrowStage[];
   isPreset: boolean;
   organizationId?: string;
+  imageUrl?: string;   // custom cover image for this program
+  imageEmoji?: string; // emoji fallback when no image
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -211,6 +213,8 @@ export interface GrowCycle {
   cropType: string;
   totalDays: number;
   status: 'active' | 'paused' | 'completed' | 'aborted';
+  imageUrl?: string;
+  imageEmoji?: string;
   startedAt: Timestamp;
   currentDay: number;
   currentStage: GrowStageType;

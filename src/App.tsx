@@ -2,6 +2,7 @@ import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-d
 import { useState, useEffect, useRef } from 'react'
 import FarmDashboard from './pages/FarmDashboard'
 import FarmModule from './pages/FarmModule'
+import CycleDetail from './pages/CycleDetail'
 import Dashboard from './pages/Dashboard'
 import Device from './pages/Device'
 import DeviceSetup from './pages/DeviceSetup'
@@ -272,6 +273,7 @@ function App() {
           <Route path="/accept-invite" element={<AcceptInvite />} />
           <Route path="/" element={<PrivateRoute><FarmDashboard /></PrivateRoute>} />
           <Route path="/farm-module/:moduleId" element={<PrivateRoute><FarmModule /></PrivateRoute>} />
+          <Route path="/farm-module/:moduleId/harvest/:cycleId" element={<PrivateRoute><CycleDetail /></PrivateRoute>} />
           <Route path="/device" element={<PrivateRoute><Device /></PrivateRoute>} />
           <Route path="/device/setup" element={<PrivateRoute><DeviceSetup /></PrivateRoute>} />
           <Route path="/alerts" element={<PrivateRoute><Alerts /></PrivateRoute>} />

@@ -150,6 +150,8 @@ export const growCycleService = {
       currentDay: 1,
       currentStage: firstStage.type,
       stages: program.stages, // Frozen snapshot
+      ...(program.imageUrl ? { imageUrl: program.imageUrl } : {}),
+      ...(program.imageEmoji ? { imageEmoji: program.imageEmoji } : {}),
       pinBindings,
       stageHistory: [{
         stage: firstStage.type,
@@ -429,6 +431,39 @@ export const growCycleService = {
       pausedAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
+  },
+
+  /**
+   * Update the stages array of a live cycle and re-write the current stage's
+   * schedules so changes take effect immediately on the device.
+   */
+  async updateCycleStages(cycle: GrowCycle, newStages: GrowStage[]): Promise<void> {
+    if (!cycle.id) throw new Error('Cycle has no ID');
+
+    // Derive current day and find the stage that is now active
+    const startMs = cycle.startedAt instanceof Timestamp
+      ? cycle.startedAt.toMillis()
+      : (cycle.startedAt as any)?.seconds
+        ? (cycle.startedAt as any).seconds * 1000
+        : Date.now();
+    const currentDay = Math.max(1, Math.floor((Date.now() - startMs) / 86400000) + 1);
+    const activeStage = newStages.find(s => currentDay >= s.dayStart && currentDay <= s.dayEnd);
+
+    // Recompute totalDays from the last stage's dayEnd
+    const totalDays = newStages.reduce((max, s) => Math.max(max, s.dayEnd), 0);
+
+    // Persist updated stages + totalDays
+    await updateDoc(doc(db, CYCLES_COLLECTION, cycle.id), {
+      stages: newStages,
+      totalDays,
+      updatedAt: Timestamp.now(),
+    });
+
+    // If an active stage exists, rebuild its schedules on the device
+    if (activeStage && cycle.status !== 'paused') {
+      await this.clearCycleSchedules(cycle.moduleId, cycle.id, cycle.pinBindings);
+      await this.writeStageSchedules(cycle.moduleId, activeStage, cycle.pinBindings, cycle.id);
+    }
   },
 
   /** Resume a paused cycle — re-enables schedules */
