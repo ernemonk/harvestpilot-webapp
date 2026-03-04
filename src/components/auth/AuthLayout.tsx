@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import logo from '../../assets/logo.png';
+import Image from 'next/image';
 
 interface AuthLayoutProps {
   title: string;
@@ -19,9 +19,11 @@ export default function AuthLayout({ title, subtitle, children }: AuthLayoutProp
         {/* Logo + branding */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center mb-4">
-            <img
-              src={logo}
+            <Image
+              src="/logo.png"
               alt="HarvestPilot"
+              width={56}
+              height={56}
               className="h-14 w-auto object-contain drop-shadow-sm"
             />
           </div>

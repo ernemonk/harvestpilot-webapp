@@ -1,5 +1,7 @@
+'use client';
+
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 
 interface LoginFormProps {
   onSubmit: (email: string, password: string) => Promise<void>;
@@ -62,7 +64,7 @@ export default function LoginForm({ onSubmit, error }: LoginFormProps) {
           <label htmlFor="password" className="block text-sm font-medium text-gray-700">
             Password
           </label>
-          <Link to="/forgot-password" className="text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors">
+          <Link href="/forgot-password" className="text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors">
             Forgot password?
           </Link>
         </div>

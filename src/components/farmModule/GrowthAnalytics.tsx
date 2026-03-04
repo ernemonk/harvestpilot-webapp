@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Growth Analytics Section
  * 
@@ -61,8 +63,8 @@ export default function GrowthAnalyticsSection({ moduleId }: GrowthAnalyticsSect
       avgSoilMoisture: average(soilReadings),
       minTemperature: tempReadings.length > 0 ? Math.min(...tempReadings) : 0,
       maxTemperature: tempReadings.length > 0 ? Math.max(...tempReadings) : 0,
-      totalLightHours: 0, // TODO: Calculate from light sensor
-      wateringEvents: readings.filter(r => r.sensorType === 'pump').length,
+      lightHours: 0, // TODO: Calculate from light sensor
+      wateringEvents: readings.filter(r => (r.sensorType as string) === 'pump').length,
       moduleId,
       cycleId: 'current', // TODO: Get from context
     });
@@ -208,7 +210,7 @@ function SummaryCards({ metrics, timeRange }: { metrics: GrowthMetrics; timeRang
   );
 }
 
-function LineChart({ data, metric }: { data: Reading[]; metric: ChartMetric; timeRange: TimeRange }) {
+function LineChart({ data, metric, timeRange }: { data: Reading[]; metric: ChartMetric; timeRange: TimeRange }) {
   if (data.length === 0) {
     return (
       <div className="h-64 flex items-center justify-center text-gray-400">
@@ -228,7 +230,7 @@ function LineChart({ data, metric }: { data: Reading[]; metric: ChartMetric; tim
   const chartHeight = height - padding.top - padding.bottom;
 
   // Calculate bounds
-  const values = data.map(d => d.value);
+  const values = data.map(d => typeof d.value === 'number' ? d.value : 0);
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
   const valueRange = maxValue - minValue || 1;
@@ -236,7 +238,8 @@ function LineChart({ data, metric }: { data: Reading[]; metric: ChartMetric; tim
   // Create points
   const points = data.map((reading, i) => {
     const x = padding.left + (i / (data.length - 1 || 1)) * chartWidth;
-    const y = padding.top + chartHeight - ((reading.value - minValue) / valueRange) * chartHeight;
+    const val = typeof reading.value === 'number' ? reading.value : 0;
+    const y = padding.top + chartHeight - ((val - minValue) / valueRange) * chartHeight;
     return { x, y, value: reading.value, timestamp: reading.timestamp };
   });
 
@@ -341,7 +344,7 @@ function LineChart({ data, metric }: { data: Reading[]; metric: ChartMetric; tim
 }
 
 function EventsChart({ readings, timeRange }: { readings: Reading[]; timeRange: TimeRange }) {
-  const wateringEvents = readings.filter(r => r.sensorType === 'pump' || r.sensorType === 'valve');
+  const wateringEvents = readings.filter(r => (r.sensorType as string) === 'pump' || (r.sensorType as string) === 'valve');
 
   if (wateringEvents.length === 0) {
     return (

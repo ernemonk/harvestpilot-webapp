@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { cropService } from '../../services/cropService';

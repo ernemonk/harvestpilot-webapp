@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, type FormEvent } from 'react';
 import { customerService } from '../../services/customerService';
 import { Timestamp } from 'firebase/firestore';

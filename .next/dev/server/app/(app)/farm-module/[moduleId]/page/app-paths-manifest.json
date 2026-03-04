@@ -1,0 +1,3 @@
+{
+  "/(app)/farm-module/[moduleId]/page": "app/(app)/farm-module/[moduleId]/page.js"
+}

@@ -1,4 +1,7 @@
-import { Navigate } from 'react-router-dom';
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface PrivateRouteProps {
@@ -6,7 +9,22 @@ interface PrivateRouteProps {
 }
 
 export default function PrivateRoute({ children }: PrivateRouteProps) {
-  const { currentUser } = useAuth();
+  const { currentUser, loading } = useAuth();
+  const router = useRouter();
 
-  return currentUser ? <>{children}</> : <Navigate to="/login" />;
+  useEffect(() => {
+    if (!loading && !currentUser) {
+      router.replace('/login');
+    }
+  }, [currentUser, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
+      </div>
+    );
+  }
+
+  return currentUser ? <>{children}</> : null;
 }

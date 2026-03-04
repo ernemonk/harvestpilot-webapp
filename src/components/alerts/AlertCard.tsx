@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * AlertCard - Individual alert display with acknowledgment
  */

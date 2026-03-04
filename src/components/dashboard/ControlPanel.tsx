@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * ControlPanel - Manual override controls with safety UX
  */

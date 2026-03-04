@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Harvest Cycle Section
  * 

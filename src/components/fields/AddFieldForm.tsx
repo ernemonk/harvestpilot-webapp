@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, type FormEvent } from 'react';
 import { fieldService } from '../../services/fieldService';
 import { Timestamp } from 'firebase/firestore';
