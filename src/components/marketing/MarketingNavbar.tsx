@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function MarketingNavbar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -25,7 +26,7 @@ export default function MarketingNavbar() {
         <div className="flex justify-between items-center h-16 sm:h-18">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <span className="text-2xl">🌱</span>
+            <Image src="/logo.png" alt="HarvestPilot" width={36} height={36} className="h-9 w-auto object-contain" />
             <span className="text-xl font-extrabold tracking-tight text-gray-900 group-hover:text-harvest-green transition-colors">
               HarvestPilot
             </span>

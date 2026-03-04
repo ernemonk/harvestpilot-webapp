@@ -31,6 +31,7 @@ export default function FarmModule() {
   const router = useRouter();
   const { currentOrganization } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [openNewCycleModal, setOpenNewCycleModal] = useState(false);
   
   const { module, loading, error } = useFarmModule(moduleId);
 
@@ -106,7 +107,10 @@ export default function FarmModule() {
               <button className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                 Settings
               </button>
-              <button className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors">
+              <button
+                onClick={() => { setActiveTab('harvest'); setOpenNewCycleModal(true); }}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
+              >
                 Start Harvest
               </button>
             </div>
@@ -142,7 +146,13 @@ export default function FarmModule() {
         {activeTab === 'devices' && <DevicesSection moduleId={module.id} hardwareSerial={module.id} />}
         {activeTab === 'automations' && <AutomationsSection moduleId={module.id} />}
         {activeTab === 'analytics' && <GrowthAnalytics moduleId={module.id} />}
-        {activeTab === 'harvest' && <HarvestCycleSection moduleId={module.id} />}
+        {activeTab === 'harvest' && (
+          <HarvestCycleSection
+            moduleId={module.id}
+            openNewCycleModal={openNewCycleModal}
+            onNewCycleModalClosed={() => setOpenNewCycleModal(false)}
+          />
+        )}
         {activeTab === 'camera' && <CameraSection moduleId={module.id} />}
       </div>
     </div>

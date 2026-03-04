@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -65,12 +66,9 @@ function AppNav({ children }: { children: React.ReactNode }) {
           <div className="flex justify-between items-center h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <Link href="/dashboard" className="flex items-center space-x-2">
-                  <span className="text-2xl sm:text-3xl">🌱</span>
-                  <div className="flex flex-col">
-                    <h1 className="text-sm sm:text-xl font-bold text-primary-600 leading-tight">Farm Intelligence</h1>
-                    <p className="text-xs text-gray-500 leading-tight hidden sm:block">Harvest Hub</p>
-                  </div>
+                <Link href="/dashboard" className="flex items-center space-x-2 group">
+                  <Image src="/logo.png" alt="HarvestPilot" width={36} height={36} className="h-9 w-auto object-contain" />
+                  <span className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition-colors">HarvestPilot</span>
                 </Link>
               </div>
               {currentUser && (

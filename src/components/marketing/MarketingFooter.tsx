@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function MarketingFooter() {
   const currentYear = new Date().getFullYear();
@@ -8,7 +9,10 @@ export default function MarketingFooter() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid md:grid-cols-4 gap-8 mb-8">
           <div>
-            <h3 className="text-2xl font-bold mb-4 text-harvest-green">🌱 HarvestPilot</h3>
+            <div className="flex items-center gap-2 mb-4">
+              <Image src="/logo.png" alt="HarvestPilot" width={32} height={32} className="h-8 w-auto object-contain brightness-200" />
+              <h3 className="text-xl font-bold text-white">HarvestPilot</h3>
+            </div>
             <p className="text-gray-400">Farm Intelligence Platform for specialty crop farmers.</p>
             <div className="flex gap-4 mt-4">
               <a href="#" className="hover:text-harvest-green transition">Twitter</a>

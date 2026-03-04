@@ -23,7 +23,13 @@ dist-ssr
 *.sln
 *.sw?
 
-# Local environment and logs (keep secrets tracked for now - not removing from history)
+# Next.js build output
+.next/
+out/
+
+# Local environment and logs
+.env.local
+.env.*.local
 .env
 sevice-account.json
 logs/
