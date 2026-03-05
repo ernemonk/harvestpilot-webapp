@@ -1,43 +1,71 @@
 'use client';
 
 /**
- * Module Overview Section
- * 
- * Displays module status, quick actions, and current sensor readings.
- * Apple-like design: spacious, clear hierarchy, premium feel.
+ * Module Overview — Harvest Cycle as hero feature
  */
 
-import { useState } from 'react';
-import type { FarmModule } from '../../types/farmModule';
+import { useState, useEffect } from 'react';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import type { FarmModule, HarvestCycle, ModuleDevice } from '../../types/farmModule';
 import { useDeviceState } from '../../hooks/useDeviceState';
 import { useCommands } from '../../hooks/useCommands';
 
 interface ModuleOverviewProps {
   module: FarmModule;
+  onStartHarvest?: () => void;
+  onGoToHarvest?: () => void;
+  onGoToDevices?: () => void;
 }
 
-export default function ModuleOverview({ module }: ModuleOverviewProps) {
+const STAGES = ['seeding', 'germination', 'blackout', 'light_exposure', 'growth', 'harvest'] as const;
+const STAGE_META: Record<string, { label: string; icon: string }> = {
+  seeding:        { label: 'Seeding',        icon: '🌾' },
+  germination:    { label: 'Germination',    icon: '🌱' },
+  blackout:       { label: 'Blackout',       icon: '🌑' },
+  light_exposure: { label: 'Light Exposure', icon: '💡' },
+  growth:         { label: 'Growth',         icon: '🌿' },
+  harvest:        { label: 'Harvest',        icon: '✂️' },
+  completed:      { label: 'Completed',      icon: '✅' },
+};
+
+export default function ModuleOverview({ module, onStartHarvest, onGoToHarvest, onGoToDevices }: ModuleOverviewProps) {
   const { state: deviceState } = useDeviceState(module.deviceId);
   const commands = useCommands(module.deviceId);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showDeviceInfo, setShowDeviceInfo] = useState(false);
+  const [activeCycles, setActiveCycles] = useState<HarvestCycle[]>([]);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [devices, setDevices] = useState<ModuleDevice[]>([]);
+  const [cyclesLoading, setCyclesLoading] = useState(true);
+
+  // Real-time harvest cycles
+  useEffect(() => {
+    const q = query(collection(db, 'harvest_cycles'), where('moduleId', '==', module.id));
+    return onSnapshot(q, snap => {
+      const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as HarvestCycle));
+      setActiveCycles(all.filter(c => c.status === 'active'));
+      setCompletedCount(all.filter(c => c.status === 'completed').length);
+      setCyclesLoading(false);
+    }, () => setCyclesLoading(false));
+  }, [module.id]);
+
+  // Devices for display
+  useEffect(() => {
+    const q = query(collection(db, 'devices'), where('moduleId', '==', module.id));
+    return onSnapshot(q, snap => {
+      setDevices(snap.docs.map(d => ({ id: d.id, ...d.data() } as ModuleDevice)));
+    });
+  }, [module.id]);
 
   const handleQuickAction = async (action: string) => {
     setActionLoading(action);
     try {
       switch (action) {
-        case 'pump_start':
-          await commands.sendCommand('pump_on', { duration: 30 });
-          break;
-        case 'pump_stop':
-          await commands.sendCommand('pump_off', {});
-          break;
-        case 'lights_on':
-          await commands.sendCommand('lights_on', { brightness: 100 });
-          break;
-        case 'lights_off':
-          await commands.sendCommand('lights_off', { brightness: 0 });
-          break;
+        case 'pump_start': await commands.sendCommand('pump_on', { duration: 30 }); break;
+        case 'pump_stop':  await commands.sendCommand('pump_off', {}); break;
+        case 'lights_on':  await commands.sendCommand('lights_on', { brightness: 100 }); break;
+        case 'lights_off': await commands.sendCommand('lights_off', { brightness: 0 }); break;
       }
     } catch (err) {
       console.error('Quick action failed:', err);
@@ -48,207 +76,274 @@ export default function ModuleOverview({ module }: ModuleOverviewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* System Status */}
+      {/* ── System Status ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatusCard
-          icon="🟢"
-          title="System Status"
+          icon="🟢" title="System Status"
           value={module.status === 'online' ? 'Online' : 'Offline'}
           subtitle={`Last check-in: ${getExactTimestamp(module.lastHeartbeat)}`}
           status={module.status}
         />
-
-        {/* Network Info */}
-        <StatusCard
-          icon="🌐"
-          title="Network"
-          value={module.ipAddress || 'Not Available'}
-          subtitle={`MAC: ${module.macAddress || 'Unknown'}`}
-        />
-
-        {/* OS */}
-        <StatusCard
-          icon="⚙️"
-          title="OS"
-          value={module.os || 'Unknown'}
-          subtitle="Linux-based system"
-        />
+        <StatusCard icon="🌐" title="Network" value={module.ipAddress || 'Not Available'} subtitle={`MAC: ${module.macAddress || 'Unknown'}`} />
+        <StatusCard icon="⚙️" title="OS" value={module.os || 'Unknown'} subtitle="Linux-based system" />
       </div>
 
-      {/* Device Information - Collapsible */}
+      {/* ── HARVEST CYCLE HERO ── */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-6 pt-5 pb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <span className="text-2xl">🌱</span>
+            <div>
+              <h3 className="text-base font-bold text-gray-900">Harvest Cycles</h3>
+              <p className="text-xs text-gray-400">
+                {cyclesLoading ? 'Loading…' : activeCycles.length > 0
+                  ? `${activeCycles.length} active · ${completedCount} completed`
+                  : completedCount > 0 ? `${completedCount} completed · no active cycle` : 'No cycles yet'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {activeCycles.length > 0 && (
+              <button
+                onClick={onGoToHarvest}
+                className="text-xs font-semibold text-primary-600 hover:text-primary-700 transition px-2 py-1 rounded-lg hover:bg-primary-50"
+              >
+                View all →
+              </button>
+            )}
+            <button
+              onClick={onStartHarvest}
+              className="px-3 py-1.5 bg-primary-600 text-white text-xs font-semibold rounded-xl hover:bg-primary-700 transition shadow-sm"
+            >
+              + New Cycle
+            </button>
+          </div>
+        </div>
+
+        {cyclesLoading ? (
+          <div className="px-6 pb-5">
+            <div className="h-16 bg-gray-100 rounded-xl animate-pulse" />
+          </div>
+        ) : activeCycles.length === 0 ? (
+          <div className="px-6 pb-6 text-center">
+            <div className="bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 px-6 py-8">
+              <div className="text-3xl mb-2">🌾</div>
+              <p className="text-sm font-medium text-gray-700 mb-1">No active harvest cycle</p>
+              <p className="text-xs text-gray-400 mb-4">Start a cycle to track stages, devices, and yield</p>
+              <button
+                onClick={onStartHarvest}
+                className="px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-700 transition shadow-sm"
+              >
+                Start First Cycle 🌱
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="px-6 pb-5 space-y-3">
+            {activeCycles.slice(0, 2).map(cycle => (
+              <CycleOverviewCard key={cycle.id} cycle={cycle} onClick={onGoToHarvest} />
+            ))}
+            {activeCycles.length > 2 && (
+              <button
+                onClick={onGoToHarvest}
+                className="w-full py-2 text-xs text-primary-600 font-semibold hover:bg-primary-50 rounded-xl transition"
+              >
+                +{activeCycles.length - 2} more active cycle{activeCycles.length - 2 > 1 ? 's' : ''} →
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Stats bar */}
+        <div className="border-t border-gray-100 px-6 py-3 grid grid-cols-3 gap-4">
+          <div className="text-center">
+            <p className="text-lg font-bold text-gray-900">{activeCycles.length}</p>
+            <p className="text-xs text-gray-400">Active</p>
+          </div>
+          <div className="text-center border-x border-gray-100">
+            <p className="text-lg font-bold text-gray-900">{completedCount}</p>
+            <p className="text-xs text-gray-400">Completed</p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-bold text-gray-900">
+              {activeCycles.length > 0
+                ? Math.floor((Date.now() - (activeCycles[0].startDate as any).seconds * 1000) / 86400000)
+                : '—'}
+            </p>
+            <p className="text-xs text-gray-400">Days growing</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Devices Quick Status ── */}
+      {devices.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🔧</span>
+              <h3 className="font-bold text-gray-900 text-sm">Devices</h3>
+              <span className="text-xs text-gray-400">{devices.length} registered</span>
+            </div>
+            <button onClick={onGoToDevices} className="text-xs font-semibold text-primary-600 hover:text-primary-700 transition px-2 py-1 rounded-lg hover:bg-primary-50">
+              Manage →
+            </button>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {devices.slice(0, 4).map(device => (
+              <div key={device.id} className="flex items-center justify-between px-6 py-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${device.enabled ? 'bg-green-400' : 'bg-gray-300'}`} />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{device.name}</p>
+                    <p className="text-xs text-gray-400 capitalize">
+                      {device.subtype}{device.gpioPin != null ? ` · Pin ${device.gpioPin}` : ''}
+                    </p>
+                  </div>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  device.type === 'actuator' ? 'bg-blue-50 text-blue-600' :
+                  device.type === 'sensor' ? 'bg-purple-50 text-purple-600' :
+                  'bg-gray-50 text-gray-500'
+                }`}>{device.type}</span>
+              </div>
+            ))}
+            {devices.length > 4 && (
+              <div className="px-6 py-3 text-center">
+                <button onClick={onGoToDevices} className="text-xs text-gray-400 hover:text-primary-600 transition">+{devices.length - 4} more</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Device Information (collapsible) ── */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <button
           onClick={() => setShowDeviceInfo(!showDeviceInfo)}
           className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
         >
-          <h3 className="text-lg font-semibold text-gray-900">Device Information</h3>
-          <svg
-            className={`w-5 h-5 text-gray-500 transition-transform ${showDeviceInfo ? 'rotate-180' : ''}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
+          <h3 className="text-sm font-semibold text-gray-900">Device Information</h3>
+          <svg className={`w-5 h-5 text-gray-500 transition-transform ${showDeviceInfo ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
           </svg>
         </button>
-
         {showDeviceInfo && (
           <div className="border-t border-gray-200 p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Identifiers */}
-          <div className="space-y-4">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Identifiers</h4>
-            <InfoItem label="Device ID" value={module.deviceId} />
-            <InfoItem label="Device Name" value={module.deviceName || '--'} />
-            <InfoItem label="Hardware Serial" value={module.hardwareSerial || '--'} />
-          </div>
-
-          {/* Network Configuration */}
-          <div className="space-y-4">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Network</h4>
-            <InfoItem label="IP Address" value={module.ipAddress || 'Not Available'} />
-            <InfoItem label="MAC Address" value={module.macAddress || 'Unknown'} />
-            <InfoItem label="Hostname" value={module.hostname || '--'} />
-          </div>
-
-          {/* System Details */}
-          <div className="space-y-4">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">System</h4>
-            <InfoItem label="Platform" value={module.platform || '--'} />
-            <InfoItem label="OS" value={module.os || '--'} />
-            <InfoItem label="Status" value={
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                module.status === 'online' 
-                  ? 'bg-green-100 text-green-700' 
-                  : 'bg-gray-100 text-gray-700'
-              }`}>
-                {module.status === 'online' ? '🟢 Online' : '🔴 Offline'}
-              </span>
-            } />
-          </div>
-
-          {/* Timestamps */}
-          <div className="space-y-4">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Timestamps</h4>
-            <InfoItem label="Last Sync" value={formatLastSeen(module.lastSyncAt)} />
-            <InfoItem label="Initialized" value={module.initializedAt ? new Date(module.initializedAt).toLocaleDateString() : '--'} />
-          </div>
+              <div className="space-y-4">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Identifiers</h4>
+                <InfoItem label="Device ID" value={module.deviceId} />
+                <InfoItem label="Device Name" value={module.deviceName || '--'} />
+                <InfoItem label="Hardware Serial" value={module.hardwareSerial || '--'} />
+              </div>
+              <div className="space-y-4">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Network</h4>
+                <InfoItem label="IP Address" value={module.ipAddress || 'Not Available'} />
+                <InfoItem label="MAC Address" value={module.macAddress || 'Unknown'} />
+                <InfoItem label="Hostname" value={module.hostname || '--'} />
+              </div>
+              <div className="space-y-4">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">System</h4>
+                <InfoItem label="Platform" value={module.platform || '--'} />
+                <InfoItem label="OS" value={module.os || '--'} />
+                <InfoItem label="Status" value={
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${module.status === 'online' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                    {module.status === 'online' ? '🟢 Online' : '🔴 Offline'}
+                  </span>
+                } />
+              </div>
             </div>
           </div>
         )}
       </div>
 
+      {/* ── Quick Actions ── */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+        <h3 className="text-sm font-bold text-gray-900 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <QuickActionButton
-            icon="💧"
-            label="Start Pump"
-            sublabel="30 seconds"
-            onClick={() => handleQuickAction('pump_start')}
-            loading={actionLoading === 'pump_start'}
-            disabled={module.status !== 'online'}
-          />
-          <QuickActionButton
-            icon="🛑"
-            label="Stop Pump"
-            onClick={() => handleQuickAction('pump_stop')}
-            loading={actionLoading === 'pump_stop'}
-            disabled={module.status !== 'online'}
-            variant="secondary"
-          />
-          <QuickActionButton
-            icon="💡"
-            label="Lights On"
-            onClick={() => handleQuickAction('lights_on')}
-            loading={actionLoading === 'lights_on'}
-            disabled={module.status !== 'online'}
-          />
-          <QuickActionButton
-            icon="🌙"
-            label="Lights Off"
-            onClick={() => handleQuickAction('lights_off')}
-            loading={actionLoading === 'lights_off'}
-            disabled={module.status !== 'online'}
-            variant="secondary"
-          />
+          <QuickActionButton icon="💧" label="Start Pump" sublabel="30 seconds" onClick={() => handleQuickAction('pump_start')} loading={actionLoading === 'pump_start'} disabled={module.status !== 'online'} />
+          <QuickActionButton icon="🛑" label="Stop Pump" onClick={() => handleQuickAction('pump_stop')} loading={actionLoading === 'pump_stop'} disabled={module.status !== 'online'} variant="secondary" />
+          <QuickActionButton icon="💡" label="Lights On" onClick={() => handleQuickAction('lights_on')} loading={actionLoading === 'lights_on'} disabled={module.status !== 'online'} />
+          <QuickActionButton icon="🌙" label="Lights Off" onClick={() => handleQuickAction('lights_off')} loading={actionLoading === 'lights_off'} disabled={module.status !== 'online'} variant="secondary" />
         </div>
       </div>
 
-      {/* Current Readings */}
+      {/* ── Sensor Readings ── */}
       {deviceState?.currentReading && (
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Current Conditions</h3>
+          <h3 className="text-sm font-bold text-gray-900 mb-4">Current Conditions</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <MetricCard
-              icon="🌡️"
-              label="Temperature"
-              value={deviceState.currentReading.temperature}
-              unit="°F"
-              trend="stable"
-            />
-            <MetricCard
-              icon="💧"
-              label="Humidity"
-              value={deviceState.currentReading.humidity}
-              unit="%"
-              trend="up"
-            />
-            <MetricCard
-              icon="🌱"
-              label="Soil Moisture"
-              value={deviceState.currentReading.soilMoisture}
-              unit="%"
-              trend="stable"
-            />
-            <MetricCard
-              icon="💦"
-              label="Water Level"
-              value={deviceState.currentReading.waterLevel}
-              unit="%"
-              trend="down"
-            />
+            <MetricCard icon="🌡️" label="Temperature" value={deviceState.currentReading.temperature} unit="°F" trend="stable" />
+            <MetricCard icon="💧" label="Humidity" value={deviceState.currentReading.humidity} unit="%" trend="up" />
+            <MetricCard icon="🌱" label="Soil Moisture" value={deviceState.currentReading.soilMoisture} unit="%" trend="stable" />
+            <MetricCard icon="💦" label="Water Level" value={deviceState.currentReading.waterLevel} unit="%" trend="down" />
           </div>
-        </div>
-      )}
-
-      {/* Automation Status */}
-      {deviceState && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <AutopilotCard
-            enabled={deviceState.autopilotMode === 'on'}
-            lastIrrigation={deviceState.lastIrrigationAt}
-            nextIrrigation={deviceState.nextIrrigationAt}
-            lightsOn={deviceState.lightsOn}
-          />
-          <CropInfoCard cropConfig={deviceState.cropConfig} />
         </div>
       )}
     </div>
   );
 }
 
-// ============================================
-// SUB-COMPONENTS
-// ============================================
+// ─── Cycle Overview Card (mini version for overview) ─────────────────────────
+
+function CycleOverviewCard({ cycle, onClick }: { cycle: HarvestCycle; onClick?: () => void }) {
+  const currentIndex = STAGES.indexOf(cycle.currentStage as any);
+  const progress = Math.round((Math.max(0, currentIndex) / (STAGES.length - 1)) * 100);
+  const daysElapsed = cycle.startDate
+    ? Math.floor((Date.now() - (cycle.startDate as any).seconds * 1000) / 86400000)
+    : 0;
+  const daysRemaining = Math.max(0, (cycle.expectedDays || 10) - daysElapsed);
+  const isOverdue = daysElapsed > (cycle.expectedDays || 10);
+  const meta = STAGE_META[cycle.currentStage] || STAGE_META.seeding;
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left bg-gray-50 hover:bg-gray-100 rounded-xl p-4 transition group"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{meta.icon}</span>
+          <div>
+            <p className="text-sm font-semibold text-gray-900 group-hover:text-primary-700 transition">
+              {cycle.cropType}{cycle.variety ? ` · ${cycle.variety}` : ''}
+            </p>
+            <p className="text-xs text-gray-500">
+              {meta.label} · Day {daysElapsed}
+              {isOverdue ? (
+                <span className="ml-1.5 text-amber-600 font-medium">⚠ overdue</span>
+              ) : (
+                <span className="ml-1.5 text-primary-600">{daysRemaining}d left</span>
+              )}
+            </p>
+          </div>
+        </div>
+        <span className="text-xs text-gray-400 group-hover:text-primary-600 transition">→</span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${isOverdue ? 'bg-amber-400' : 'bg-primary-500'}`}
+          style={{ width: `${Math.max(4, progress)}%` }}
+        />
+      </div>
+      <div className="flex justify-between mt-1">
+        <span className="text-xs text-gray-400">{STAGES.slice(0, -1).map(s => STAGE_META[s].icon).join(' ')}</span>
+        <span className="text-xs text-gray-500 font-medium">{progress}%</span>
+      </div>
+    </button>
+  );
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function StatusCard({ icon, title, value, subtitle, status }: any) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
+    <div className="bg-white rounded-xl border border-gray-200 p-5">
       <div className="flex items-center space-x-3 mb-3">
-        <span className="text-3xl">{icon}</span>
-        <div className="flex-1">
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-        </div>
+        <span className="text-2xl">{icon}</span>
+        <p className="text-sm font-medium text-gray-500">{title}</p>
       </div>
-      <p className={`text-2xl font-semibold mb-1 ${
-        status === 'online' ? 'text-green-600' : 
-        status === 'offline' ? 'text-gray-400' : 
-        'text-gray-900'
-      }`}>
-        {value}
-      </p>
+      <p className={`text-xl font-semibold mb-1 ${status === 'online' ? 'text-green-600' : status === 'offline' ? 'text-gray-400' : 'text-gray-900'}`}>{value}</p>
       <p className="text-xs text-gray-500">{subtitle}</p>
     </div>
   );
@@ -259,15 +354,11 @@ function QuickActionButton({ icon, label, sublabel, onClick, loading, disabled, 
     <button
       onClick={onClick}
       disabled={disabled || loading}
-      className={`
-        relative p-4 rounded-lg border-2 transition-all
-        ${disabled 
-          ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-50' 
-          : variant === 'secondary'
-            ? 'border-gray-300 bg-white hover:border-gray-400 hover:shadow-sm'
-            : 'border-primary-200 bg-primary-50 hover:border-primary-400 hover:shadow-sm'
-        }
-      `}
+      className={`relative p-4 rounded-lg border-2 transition-all ${
+        disabled ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-50'
+          : variant === 'secondary' ? 'border-gray-300 bg-white hover:border-gray-400 hover:shadow-sm'
+          : 'border-primary-200 bg-primary-50 hover:border-primary-400 hover:shadow-sm'
+      }`}
     >
       <div className="text-center">
         <div className="text-2xl mb-1">{icon}</div>
@@ -284,23 +375,13 @@ function QuickActionButton({ icon, label, sublabel, onClick, loading, disabled, 
 }
 
 function MetricCard({ icon, label, value, unit, trend }: any) {
-  const trendColors = {
-    up: 'text-green-600',
-    down: 'text-red-600',
-    stable: 'text-gray-400'
-  };
-
-  const trendIcons = {
-    up: '↗',
-    down: '↘',
-    stable: '→'
-  };
-
+  const trendColors = { up: 'text-green-600', down: 'text-red-600', stable: 'text-gray-400' };
+  const trendIcons = { up: '↗', down: '↘', stable: '→' };
   return (
     <div className="text-center">
       <div className="text-3xl mb-2">{icon}</div>
-      <div className="text-3xl font-bold text-gray-900 mb-1">
-        {Math.round(value)}<span className="text-lg text-gray-500">{unit}</span>
+      <div className="text-2xl font-bold text-gray-900 mb-1">
+        {Math.round(value)}<span className="text-base text-gray-500">{unit}</span>
       </div>
       <div className="text-sm text-gray-500">{label}</div>
       <div className={`text-xs mt-1 ${trendColors[trend as keyof typeof trendColors]}`}>
@@ -310,195 +391,32 @@ function MetricCard({ icon, label, value, unit, trend }: any) {
   );
 }
 
-function AutopilotCard({ enabled, lastIrrigation, nextIrrigation, lightsOn }: any) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Autopilot</h3>
-        <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-          enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-        }`}>
-          {enabled ? '🟢 Active' : '⚫ Inactive'}
-        </div>
-      </div>
-      <div className="space-y-3 text-sm">
-        <div className="flex items-center justify-between py-2 border-b border-gray-100">
-          <span className="text-gray-600">Lights</span>
-          <span className="font-medium text-gray-900">
-            {lightsOn ? '💡 On' : '🌙 Off'}
-          </span>
-        </div>
-        <div className="flex items-center justify-between py-2 border-b border-gray-100">
-          <span className="text-gray-600">Last Irrigation</span>
-          <span className="font-medium text-gray-900">
-            {lastIrrigation ? formatTimeAgo(lastIrrigation) : 'Never'}
-          </span>
-        </div>
-        <div className="flex items-center justify-between py-2">
-          <span className="text-gray-600">Next Irrigation</span>
-          <span className="font-medium text-gray-900">
-            {nextIrrigation ? formatTimeUntil(nextIrrigation) : 'Not scheduled'}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CropInfoCard({ cropConfig }: any) {
-  if (!cropConfig) {
-    return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Crop</h3>
-        <div className="text-center py-6 text-gray-500">
-          <div className="text-4xl mb-2">🌱</div>
-          <p>No crop configured</p>
-        </div>
-      </div>
-    );
-  }
-
-  const daysGrowing = Math.floor((Date.now() - cropConfig.plantedAt) / (1000 * 60 * 60 * 24));
-  const progress = (daysGrowing / cropConfig.expectedHarvestDays) * 100;
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Crop</h3>
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-lg font-medium text-gray-900">{cropConfig.cropType}</span>
-          <span className="text-sm text-gray-500">
-            Day {daysGrowing} of {cropConfig.expectedHarvestDays}
-          </span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-          <div
-            className="bg-primary-600 h-2 rounded-full transition-all duration-500"
-            style={{ width: `${Math.min(progress, 100)}%` }}
-          />
-        </div>
-      </div>
-      <div className="space-y-2 text-sm">
-        <div className="flex justify-between">
-          <span className="text-gray-600">Planted</span>
-          <span className="font-medium text-gray-900">
-            {new Date(cropConfig.plantedAt).toLocaleDateString()}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-600">Est. Harvest</span>
-          <span className="font-medium text-gray-900">
-            {new Date(cropConfig.plantedAt + cropConfig.expectedHarvestDays * 24 * 60 * 60 * 1000).toLocaleDateString()}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================
-// UTILITIES
-// ============================================
+// ─── Utilities ────────────────────────────────────────────────────────────────
 
 function getExactTimestamp(timestamp: any): string {
   if (!timestamp) return 'Never';
-  
   try {
     const date = new Date(timestamp.seconds ? timestamp.seconds * 1000 : timestamp);
     const now = new Date();
-    
-    // Show exact time with relative info
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const seconds = date.getSeconds().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    
-    // Calculate how long ago
+    const h = date.getHours().toString().padStart(2, '0');
+    const m = date.getMinutes().toString().padStart(2, '0');
+    const s = date.getSeconds().toString().padStart(2, '0');
     const diff = now.getTime() - date.getTime();
     const secs = Math.floor(diff / 1000);
     const mins = Math.floor(secs / 60);
     const hrs = Math.floor(mins / 60);
     const days = Math.floor(hrs / 24);
-    
-    let relativeTime = '';
-    if (secs < 60) relativeTime = `${secs}s ago`;
-    else if (mins < 60) relativeTime = `${mins}m ago`;
-    else if (hrs < 24) relativeTime = `${hrs}h ago`;
-    else relativeTime = `${days}d ago`;
-    
-    return `${hours}:${minutes}:${seconds} (${relativeTime})`;
-  } catch {
-    return 'Invalid timestamp';
-  }
-}
-
-function formatLastSeen(timestamp: any): string {
-  if (!timestamp) return 'Never';
-  
-  // Handle both Firestore Timestamp objects and milliseconds
-  let timestampMs: number;
-  if (timestamp.toMillis) {
-    // Firestore Timestamp object
-    timestampMs = timestamp.toMillis();
-  } else if (timestamp.seconds) {
-    // Firestore Timestamp with seconds property
-    timestampMs = timestamp.seconds * 1000;
-  } else if (typeof timestamp === 'number') {
-    // Assume milliseconds if > 10^10, otherwise seconds
-    timestampMs = timestamp > 10000000000 ? timestamp : timestamp * 1000;
-  } else {
-    return 'Never';
-  }
-  
-  const now = Date.now();
-  const diff = now - timestampMs;
-  const diffSeconds = Math.floor(diff / 1000);
-  
-  if (diffSeconds < 60) return 'Just now';
-  if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
-  if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}h ago`;
-  return `${Math.floor(diffSeconds / 86400)}d ago`;
-}
-
-function formatTimeAgo(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
-  const minutes = Math.floor(diff / (1000 * 60));
-  
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
-function formatTimeUntil(timestamp: number): string {
-  const now = Date.now();
-  const diff = timestamp - now;
-  
-  if (diff < 0) return 'Overdue';
-  
-  const minutes = Math.floor(diff / (1000 * 60));
-  if (minutes < 60) return `in ${minutes}m`;
-  
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `in ${hours}h`;
-  
-  const days = Math.floor(hours / 24);
-  return `in ${days}d`;
+    let rel = secs < 60 ? `${secs}s ago` : mins < 60 ? `${mins}m ago` : hrs < 24 ? `${hrs}h ago` : `${days}d ago`;
+    return `${h}:${m}:${s} (${rel})`;
+  } catch { return 'Invalid'; }
 }
 
 function InfoItem({ label, value }: { label: string; value: string | React.ReactNode }) {
   return (
     <div>
       <p className="text-xs text-gray-500 mb-1">{label}</p>
-      <p className="text-sm font-medium text-gray-900 break-all">
-        {typeof value === 'string' ? value : value}
-      </p>
+      <p className="text-sm font-medium text-gray-900 break-all">{value}</p>
     </div>
   );
 }
+

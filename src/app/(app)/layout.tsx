@@ -74,7 +74,6 @@ function AppNav({ children }: { children: React.ReactNode }) {
               {currentUser && (
                 <div className="hidden md:ml-8 md:flex md:space-x-8">
                   <Link href="/dashboard" className={navLinkClass('/dashboard')}>Farm</Link>
-                  <Link href="/crops" className={navLinkClass('/crops')}>Crops</Link>
                   <Link href="/harvests" className={navLinkClass('/harvests')}>Harvests</Link>
                   <Link href="/crop-research" className={navLinkClass('/crop-research')}>Research</Link>
                   <Link href="/alerts" className={navLinkClass('/alerts')}>Alerts</Link>
@@ -178,7 +177,6 @@ function AppNav({ children }: { children: React.ReactNode }) {
           <div className="md:hidden border-t border-gray-200">
             <div className="pt-2 pb-3 space-y-1">
               <Link href="/dashboard" className={mobileNavLinkClass('/dashboard')}>Farm Dashboard</Link>
-              <Link href="/crops" className={mobileNavLinkClass('/crops')}>Crops</Link>
               <Link href="/harvests" className={mobileNavLinkClass('/harvests')}>Harvests</Link>
               <Link href="/crop-research" className={mobileNavLinkClass('/crop-research')}>Research</Link>
               <Link href="/alerts" className={mobileNavLinkClass('/alerts')}>Alerts</Link>

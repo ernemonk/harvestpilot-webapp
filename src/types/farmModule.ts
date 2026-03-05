@@ -125,6 +125,41 @@ export interface Schedule {
 
 export type HarvestStage = 'seeding' | 'germination' | 'blackout' | 'light_exposure' | 'growth' | 'harvest' | 'completed';
 
+/** How a device is controlled within a harvest stage */
+export type DeviceControlMode = 'on' | 'off' | 'timer' | 'sensor_triggered';
+
+export interface StageDeviceConfig {
+  deviceId: string;
+  /** The pin number (from ModuleDevice.gpioPin) */
+  gpioPin?: number;
+  /** Desired state: on/off or timer/sensor-triggered for actuators; monitor for sensors */
+  mode: DeviceControlMode | 'monitor';
+  /** Timer mode: how many seconds to run per cycle */
+  timerDurationSec?: number;
+  /** Timer mode: how often to run (interval in minutes) */
+  timerIntervalMin?: number;
+  /** Sensor-triggered: which sensor device triggers this actuator */
+  triggerSensorDeviceId?: string;
+  /** Sensor-triggered: the threshold value that fires this device */
+  triggerThreshold?: number;
+  /** Sensor-triggered: 'below' = activate when sensor < threshold, 'above' = activate when > */
+  triggerDirection?: 'below' | 'above';
+  /** How long to run when sensor-triggered (seconds) */
+  triggerDurationSec?: number;
+}
+
+export interface StageConfig {
+  stage: HarvestStage;
+  label?: string; // Custom stage name (falls back to default)
+  icon?: string; // Custom stage icon (falls back to default) 
+  description?: string; // Custom stage description (falls back to default)
+  days: number;
+  devices: StageDeviceConfig[];
+  /** Legacy field kept for backwards compat */
+  activateDeviceIds?: string[];
+  deactivateDeviceIds?: string[];
+}
+
 export interface HarvestCycle {
   id: string;
   moduleId: string;
@@ -140,7 +175,10 @@ export interface HarvestCycle {
     completedAt?: Timestamp;
     notes?: string;
   }[];
-  expectedHarvestDate: Timestamp;
+  /** Per-stage device configuration and durations */
+  stageConfigs?: StageConfig[];
+  stageStartTimes?: Record<string, Timestamp>;
+  expectedHarvestDate?: Timestamp;
   harvestDate?: Timestamp;
   actualHarvestDate?: Timestamp;
   yieldWeight?: number; // in oz or grams
@@ -149,6 +187,19 @@ export interface HarvestCycle {
   notes?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+}
+
+// ============================================
+// CROP PRESET
+// ============================================
+
+export interface CropPreset {
+  id?: string;
+  moduleId?: string; // null = global default, set = module-specific
+  name: string; // e.g., "Broccoli"
+  emoji?: string;
+  defaultStageDays: Partial<Record<HarvestStage, number>>;
+  notes?: string;
 }
 
 // ============================================
